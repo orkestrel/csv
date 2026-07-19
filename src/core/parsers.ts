@@ -235,6 +235,8 @@ export function scanQuoted(
 		}
 
 		if (isBreakChar(char)) {
+			// Not scanBreak: a quoted field keeps the literal break characters in
+			// its value, and scanBreak only advances the cursor without yielding them.
 			if (char === '\r' && source.charAt(cursor.offset + 1) === '\n') {
 				value += '\r\n'
 				cursor = { offset: cursor.offset + 2, line: cursor.line + 1, column: 1 }

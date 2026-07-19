@@ -16,7 +16,7 @@ import {
 	resolveParseOptions,
 	resolveRenderOptions,
 	sanitizeField,
-	selectQuotePolicy,
+	quoteStyleToPolicy,
 	serializeCell,
 	stripBom,
 	uniqueColumns,
@@ -303,17 +303,17 @@ describe('quoteNonnumeric', () => {
 	})
 })
 
-describe('selectQuotePolicy', () => {
+describe('quoteStyleToPolicy', () => {
 	it('selects quoteMinimal for "minimal"', () => {
-		expect(selectQuotePolicy('minimal')).toBe(quoteMinimal)
+		expect(quoteStyleToPolicy('minimal')).toBe(quoteMinimal)
 	})
 
 	it('selects quoteAlways for "always"', () => {
-		expect(selectQuotePolicy('always')).toBe(quoteAlways)
+		expect(quoteStyleToPolicy('always')).toBe(quoteAlways)
 	})
 
 	it('selects quoteNonnumeric for "nonnumeric"', () => {
-		expect(selectQuotePolicy('nonnumeric')).toBe(quoteNonnumeric)
+		expect(quoteStyleToPolicy('nonnumeric')).toBe(quoteNonnumeric)
 	})
 })
 

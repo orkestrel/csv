@@ -487,10 +487,10 @@ export function renderRecord(
  *
  * @example
  * ```ts
- * selectQuotePolicy('always') // quoteAlways
+ * quoteStyleToPolicy('always') // quoteAlways
  * ```
  */
-export function selectQuotePolicy(
+export function quoteStyleToPolicy(
 	quotes: ResolvedRenderOptions['quotes'],
 ): (field: string, options: ResolvedRenderOptions) => string {
 	switch (quotes) {
@@ -528,7 +528,7 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
 	const resolved = resolveRenderOptions(options)
 	const rows: readonly Row[] = isRowList(input) ? input : input.rows
 	const columns = resolved.columns ?? (isRowList(input) ? deriveColumns(input) : input.columns)
-	const quote = selectQuotePolicy(resolved.quotes)
+	const quote = quoteStyleToPolicy(resolved.quotes)
 
 	const lines: string[] = []
 	if (resolved.header) {
