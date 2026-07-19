@@ -507,18 +507,18 @@ export function buildRow(
  * @param type - The column's inferred {@link ColumnType} (never `'json'` /
  * `'blob'` - those are never inferred, and pass through unchanged like
  * `'text'`)
- * @returns The typed value, via {@link parseInteger} / {@link parseReal} /
- * {@link parseBoolean}; `value` unchanged for `'text'` (or the unreachable
+ * @returns The typed value, via {@link coerceInteger} / {@link coerceReal} /
+ * {@link coerceBoolean}; `value` unchanged for `'text'` (or the unreachable
  * `'json'` / `'blob'`)
  */
 export function coerceInferred(value: string, type: ColumnType): unknown {
 	switch (type) {
 		case 'integer':
-			return parseInteger(value)
+			return coerceInteger(value)
 		case 'real':
-			return parseReal(value)
+			return coerceReal(value)
 		case 'boolean':
-			return parseBoolean(value)
+			return coerceBoolean(value)
 		case 'text':
 		case 'json':
 		case 'blob':
@@ -652,17 +652,23 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
  * Coerce a raw cell string to a canonical integer - `undefined` for anything
  * else (leading zeros, decimals, out-of-safe-range magnitude, non-numeric text).
  *
+ * @remarks
+ * Named `coerce*` (not `parse*`) because this is a canonical-form CSV cell
+ * coercer whose semantics deliberately differ from `@orkestrel/contract`'s
+ * same-named `parseInteger` (leading-zero and unsafe-magnitude rejection) -
+ * the rename keeps the two packages' surfaces from being confused.
+ *
  * @param value - The raw cell text
  * @returns The integer, or `undefined` when `value` is not a canonical
  * integer within `Number.isSafeInteger` range
  *
  * @example
  * ```ts
- * parseInteger('42')  // 42
- * parseInteger('007') // undefined
+ * coerceInteger('42')  // 42
+ * coerceInteger('007') // undefined
  * ```
  */
-export function parseInteger(value: string): number | undefined {
+export function coerceInteger(value: string): number | undefined {
 	if (!INTEGER_PATTERN.test(value)) return undefined
 	const number = Number(value)
 	return Number.isSafeInteger(number) ? number : undefined
@@ -672,18 +678,25 @@ export function parseInteger(value: string): number | undefined {
  * Coerce a raw cell string to a canonical decimal (or integer) - `undefined`
  * for anything else.
  *
+ * @remarks
+ * Named `coerce*` (not `parse*`) because this is a canonical-form CSV cell
+ * coercer whose semantics deliberately differ from `@orkestrel/contract`'s
+ * same-named `parseReal`-adjacent coercers (leading-zero and unsafe-magnitude
+ * rejection) - the rename keeps the two packages' surfaces from being
+ * confused.
+ *
  * @param value - The raw cell text
  * @returns The number, or `undefined` when `value` is not a canonical
  * integer/decimal, or its integer part is out of `Number.isSafeInteger` range
  *
  * @example
  * ```ts
- * parseReal('3.14') // 3.14
- * parseReal('42')   // 42
+ * coerceReal('3.14') // 3.14
+ * coerceReal('42')   // 42
  * ```
  */
-export function parseReal(value: string): number | undefined {
-	if (INTEGER_PATTERN.test(value)) return parseInteger(value)
+export function coerceReal(value: string): number | undefined {
+	if (INTEGER_PATTERN.test(value)) return coerceInteger(value)
 	return REAL_PATTERN.test(value) ? Number(value) : undefined
 }
 
@@ -691,38 +704,24 @@ export function parseReal(value: string): number | undefined {
  * Coerce a raw cell string to a strict boolean - `undefined` for anything
  * other than the exact canonical forms.
  *
+ * @remarks
+ * Named `coerce*` (not `parse*`) because this is a canonical-form CSV cell
+ * coercer whose semantics deliberately differ from `@orkestrel/contract`'s
+ * same-named `parseBoolean` (strict `'true'`/`'false'` only, no `'1'`/`'0'`
+ * coercion) - the rename keeps the two packages' surfaces from being confused.
+ *
  * @param value - The raw cell text
  * @returns `true` for {@link BOOLEAN_TRUE}, `false` for {@link BOOLEAN_FALSE},
  * `undefined` otherwise
  *
  * @example
  * ```ts
- * parseBoolean('true')  // true
- * parseBoolean('True')  // undefined
+ * coerceBoolean('true')  // true
+ * coerceBoolean('True')  // undefined
  * ```
  */
-export function parseBoolean(value: string): boolean | undefined {
+export function coerceBoolean(value: string): boolean | undefined {
 	if (value === BOOLEAN_TRUE) return true
 	if (value === BOOLEAN_FALSE) return false
 	return undefined
-}
-
-/**
- * Coerce a raw cell string to a parsed JSON value - `undefined` on failure.
- *
- * @param value - The raw cell text
- * @returns The parsed value, or `undefined` when `value` is not valid JSON
- *
- * @example
- * ```ts
- * parseJSON('{"a":1}')  // { a: 1 }
- * parseJSON('not json') // undefined
- * ```
- */
-export function parseJSON(value: string): unknown {
-	try {
-		return JSON.parse(value)
-	} catch {
-		return undefined
-	}
 }

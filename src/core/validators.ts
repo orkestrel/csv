@@ -3,39 +3,11 @@ import type { ColumnType, CSVTable, Row } from './types.js'
 import { arrayOf, isRecord, isString, literalOf, recordOf } from '@orkestrel/contract'
 
 // AGENTS section 14: guards are total - never throw, return `false` for any
-// off-shape input. `isRow` and `isCSVTable` validate arbitrary `unknown` input
-// (a deserialized table, a value crossing a process boundary) against the
-// CSVTable structure (types.ts); `isColumnType` narrows a portable ColumnType
-// literal.
-
-/**
- * Determine whether an arbitrary value is a valid {@link Row} - a plain
- * record of column values keyed by column name.
- *
- * @remarks
- * Delegates to `@orkestrel/contract`'s `isRecord`, which accepts BOTH an
- * object literal and a null-prototype object (`Object.create(null)`) - the
- * shape the CSV parser deliberately produces for parsed rows - while
- * rejecting arrays, functions, and non-object values. Total: never throws,
- * even against a hostile `getPrototypeOf` trap (contained inside
- * `@orkestrel/contract`'s own `attempt` wrapper).
- *
- * @param value - The value to test
- * @returns `true` when `value` is a well-formed {@link Row}
- *
- * @example
- * ```ts
- * import { isRow } from '@orkestrel/csv'
- *
- * isRow({ name: 'Ada' })          // true
- * isRow(Object.create(null))      // true
- * isRow(null)                     // false
- * isRow([])                       // false
- * ```
- */
-export function isRow(value: unknown): value is Row {
-	return isRecord(value)
-}
+// off-shape input. `isCSVTable` validates arbitrary `unknown` input (a
+// deserialized table, a value crossing a process boundary) against the
+// CSVTable structure (types.ts), delegating its row check to
+// `@orkestrel/contract`'s `isRecord` directly; `isColumnType` narrows a
+// portable ColumnType literal.
 
 /**
  * Determine whether an arbitrary value is a valid {@link CSVTable} - an
@@ -44,8 +16,11 @@ export function isRow(value: unknown): value is Row {
  * @remarks
  * Total: never throws, even on cyclic or pathologically deep input - every
  * combinator involved (`recordOf`, `arrayOf`) is throw-contained per the
- * `@orkestrel/contract` guard contract (AGENTS section 14). A row that is a
- * null-prototype object (via {@link isRow}) still passes.
+ * `@orkestrel/contract` guard contract (AGENTS section 14). Each row is
+ * validated via `@orkestrel/contract`'s `isRecord`, which accepts BOTH an
+ * object literal and a null-prototype object (`Object.create(null)`) - the
+ * shape the CSV parser deliberately produces for parsed rows - while
+ * rejecting arrays, functions, and non-object values.
  *
  * @param value - The value to test
  * @returns `true` when `value` is a well-formed {@link CSVTable}
@@ -60,7 +35,7 @@ export function isRow(value: unknown): value is Row {
  */
 export const isCSVTable: Guard<CSVTable> = recordOf({
 	columns: arrayOf(isString),
-	rows: arrayOf(isRow),
+	rows: arrayOf(isRecord),
 })
 
 /**

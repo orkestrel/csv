@@ -35,7 +35,7 @@ import { isRowList } from './validators.js'
 // `parsers.ts` (that would be a cycle). `inferColumnType`'s integer/real
 // tests therefore work directly off the shared pattern constants
 // (`INTEGER_PATTERN` / `REAL_PATTERN` from `constants.ts`, the same
-// constants `parsers.ts`'s `parseInteger` / `parseReal` test against) and
+// constants `parsers.ts`'s `coerceInteger` / `coerceReal` test against) and
 // `Number.isSafeInteger` - never calling the `parsers.ts` coercers.
 
 /**

@@ -1,34 +1,11 @@
-import { isCSVTable, isColumnType, isRow, isRowList } from '@src/core'
+import { isCSVTable, isColumnType, isRowList } from '@src/core'
 import { describe, expect, it } from 'vitest'
 
 // Every guard here is total (AGENTS section 14): never throws, returns
-// `false` for any off-shape input.
-
-describe('isRow', () => {
-	it('accepts a plain object literal, empty or populated', () => {
-		expect(isRow({})).toBe(true)
-		expect(isRow({ a: 1 })).toBe(true)
-	})
-
-	it('accepts a null-prototype object (the parser deliberately produces these)', () => {
-		const nullProto = Object.create(null)
-		nullProto.a = 1
-		expect(isRow(nullProto)).toBe(true)
-		expect(isRow(Object.create(null))).toBe(true)
-	})
-
-	it('rejects null, undefined, and primitives', () => {
-		expect(isRow(null)).toBe(false)
-		expect(isRow(undefined)).toBe(false)
-		expect(isRow(42)).toBe(false)
-		expect(isRow('x')).toBe(false)
-	})
-
-	it('rejects arrays and functions', () => {
-		expect(isRow([])).toBe(false)
-		expect(isRow(() => {})).toBe(false)
-	})
-})
+// `false` for any off-shape input. `isRow`'s own behavior (accepting a plain
+// object literal or a null-prototype object, rejecting null/primitives/
+// arrays/functions) is `@orkestrel/contract`'s `isRecord`, covered in that
+// package's own suite - not retested here.
 
 describe('isCSVTable', () => {
 	it('accepts a well-formed table', () => {
@@ -59,6 +36,16 @@ describe('isCSVTable', () => {
 		expect(isCSVTable(null)).toBe(false)
 		expect(isCSVTable(undefined)).toBe(false)
 		expect(isCSVTable('table')).toBe(false)
+	})
+
+	// Leniency lock (residual-risk guard): `isCSVTable` delegates its row
+	// check to `isRecord`, which accepts ANY object-shaped value regardless of
+	// what its property values are - it never inspects cell contents or
+	// forbids extra top-level keys. `csvTableShape` (shapers.ts) is stricter
+	// by design. These two cases pin the lenient structural contract so a
+	// future consolidation onto `csvTableShape` cannot happen silently.
+	it('accepts a row holding a non-JSON value as a cell (leniency lock)', () => {
+		expect(isCSVTable({ columns: ['a'], rows: [{ a: () => {} }] })).toBe(true)
 	})
 })
 
