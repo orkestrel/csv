@@ -70,7 +70,7 @@ export function assertValidSeparators(delimiter: string, quote: string): void {
  * parse configuration.
  *
  * @param options - The caller's partial {@link ParseOptions}
- * @returns The resolved options (`columns` stays optional — it has no default)
+ * @returns The resolved options, every member defaulted
  * @throws {CSVError} `INVALID_OPTION` when `delimiter` / `quote` are invalid
  * (see {@link assertValidSeparators}), `comment` is an empty string, or
  * `limit` is negative or not a finite integer
@@ -80,9 +80,7 @@ export function assertValidSeparators(delimiter: string, quote: string): void {
  * resolveParseOptions({ delimiter: ';' }).delimiter // ';'
  * ```
  */
-export function resolveParseOptions(
-	options?: ParseOptions,
-): Required<Omit<ParseOptions, 'columns'>> & Pick<ParseOptions, 'columns'> {
+export function resolveParseOptions(options?: ParseOptions): Required<ParseOptions> {
 	const resolved = { ...DEFAULT_PARSE_OPTIONS, ...options }
 	assertValidSeparators(resolved.delimiter, resolved.quote)
 	if (resolved.comment === '')

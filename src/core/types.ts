@@ -106,14 +106,13 @@ export type Columns = Readonly<Record<string, ContractShape>>
  * `blanks` whether a blank line becomes an empty row (`'keep'`) or is dropped
  * (`'skip'`); `trim` whether leading/trailing whitespace is stripped from
  * every unquoted field (`false`); `ragged` how a record whose field count
- * differs from the header is handled — collected as an error (`'collect'`),
- * padded/truncated to fit (`'pad'`), or thrown (`'error'`); `infer` whether
- * field values are coerced to their inferred type — integer, real, boolean —
- * instead of staying strings (`false`); `columns` a declared {@link Columns}
- * map that, when given, drives coercion instead of `infer`'s heuristics (no
- * default — inference and header naming apply); `limit` a cap on the number
- * of records parsed, `0` meaning unbounded; `strict` whether a `CSVError`
- * that would otherwise be collected is thrown instead (`false`).
+ * differs from the header is handled — padded/truncated to fit with the
+ * error collected (`'collect'`), silently padded/truncated (`'pad'`), or
+ * dropped with the error collected (`'error'`); `infer` whether field values
+ * are coerced to their inferred type — integer, real, boolean — instead of
+ * staying strings (`false`); `limit` a cap on the number of data records
+ * parsed, `0` meaning unbounded; `strict` whether a `CSVError` that would
+ * otherwise be collected is thrown instead (`false`).
  */
 export interface ParseOptions {
 	readonly delimiter?: string
@@ -125,7 +124,6 @@ export interface ParseOptions {
 	readonly trim?: boolean
 	readonly ragged?: RaggedPolicy
 	readonly infer?: boolean
-	readonly columns?: Columns
 	readonly limit?: number
 	readonly strict?: boolean
 }

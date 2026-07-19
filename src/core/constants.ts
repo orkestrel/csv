@@ -7,10 +7,10 @@ import type { ParseOptions, RenderOptions } from './types.js'
 export const BOM = '﻿'
 
 /**
- * The resolved default {@link ParseOptions} (everything but `columns`, which
- * has no default) — what `parseCSV` uses for any option left unspecified.
+ * The resolved default {@link ParseOptions} — what `parseCSV` uses for any
+ * option left unspecified.
  */
-export const DEFAULT_PARSE_OPTIONS: Required<Omit<ParseOptions, 'columns'>> = {
+export const DEFAULT_PARSE_OPTIONS: Required<ParseOptions> = {
 	delimiter: ',',
 	quote: '"',
 	escape: 'double',
