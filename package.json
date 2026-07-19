@@ -1,9 +1,13 @@
 {
 	"name": "@orkestrel/csv",
 	"version": "0.0.1",
-	"description": "TODO: one-line description. Part of the @orkestrel line.",
+	"description": "A typed CSV toolkit — RFC 4180 parsing and rendering with typed rows, dialect control, and structural database interop. Part of the @orkestrel line.",
 	"keywords": [
 		"csv",
+		"parser",
+		"renderer",
+		"rfc4180",
+		"tsv",
 		"typescript"
 	],
 	"homepage": "https://github.com/orkestrel/csv#readme",
