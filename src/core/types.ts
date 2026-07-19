@@ -37,8 +37,26 @@ export interface RawField {
 	readonly quoted: boolean
 }
 
-/** One raw parsed record — an ordered list of {@link RawField}s, before header mapping. */
-export type RawRecord = readonly RawField[]
+/**
+ * One raw parsed record — its ordered {@link RawField}s plus where the record
+ * begins in the source, before header mapping.
+ *
+ * @remarks
+ * Positions are relative to the input after byte-order-mark removal: `line`
+ * and `column` are 1-based, `offset` is a 0-based character index. They let
+ * table-building errors (ragged rows, header faults) point back at the exact
+ * record that produced them.
+ */
+export interface RawRecord {
+	/** The record's fields, in source order. */
+	readonly fields: readonly RawField[]
+	/** The 1-based line the record starts on. */
+	readonly line: number
+	/** The 1-based column the record starts at. */
+	readonly column: number
+	/** The 0-based character offset the record starts at. */
+	readonly offset: number
+}
 
 /**
  * The result of the record-splitting phase — every {@link RawRecord} the
