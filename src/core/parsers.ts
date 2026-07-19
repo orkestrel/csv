@@ -12,7 +12,13 @@ import type {
 	Row,
 	RowResult,
 } from './types.js'
-import { BOOLEAN_FALSE, BOOLEAN_TRUE, INTEGER_PATTERN, MAX_ERRORS, REAL_PATTERN } from './constants.js'
+import {
+	BOOLEAN_FALSE,
+	BOOLEAN_TRUE,
+	INTEGER_PATTERN,
+	MAX_ERRORS,
+	REAL_PATTERN,
+} from './constants.js'
 import { CSVError } from './errors.js'
 import {
 	inferColumnType,
@@ -143,9 +149,7 @@ export function scanUnquoted(
 		const char = source.charAt(cursor.offset)
 		if (char === options.delimiter || isBreakChar(char)) break
 		if (char === options.quote)
-			errors.push(
-				new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', cursor),
-			)
+			errors.push(new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', cursor))
 		value += char
 		cursor = advancePosition(cursor)
 	}
@@ -212,7 +216,8 @@ export function scanQuoted(
 				continue
 			}
 			cursor = advancePosition(cursor) // consume the closing quote
-			if (cursor.offset >= source.length) return { field: { value, quoted: true }, next: cursor, errors: [] }
+			if (cursor.offset >= source.length)
+				return { field: { value, quoted: true }, next: cursor, errors: [] }
 			const after = source.charAt(cursor.offset)
 			if (after === options.delimiter || isBreakChar(after))
 				return { field: { value, quoted: true }, next: cursor, errors: [] }
