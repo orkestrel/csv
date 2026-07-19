@@ -2,12 +2,8 @@ import { isCSVError } from '@src/core'
 import {
 	deriveColumns,
 	deriveShapes,
-	escapeBackslashes,
-	escapeQuotes,
 	inferColumnType,
 	needsQuote,
-	positionalColumns,
-	quoteAlways,
 	quoteMinimal,
 	quoteNonnumeric,
 	renderCSV,
@@ -18,9 +14,9 @@ import {
 	sanitizeField,
 	quoteStyleToPolicy,
 	serializeCell,
-	stripBom,
 	uniqueColumns,
 	uniqueName,
+	wrapQuoted,
 } from '@src/core'
 import { assertAndNarrow, buildInferenceTraps } from '../../setup'
 import { describe, expect, it } from 'vitest'
@@ -43,20 +39,6 @@ function captureError(fn: () => void): unknown {
 // cell coercion, header disambiguation, formula-injection guarding, quoting,
 // and the CSV/TSV renderers. Mirrors every exported helpers.ts symbol
 // (AGENTS §16).
-
-describe('stripBom', () => {
-	it('strips a single leading BOM', () => {
-		expect(stripBom('﻿a,b')).toBe('a,b')
-	})
-
-	it('leaves text without a BOM unchanged', () => {
-		expect(stripBom('a,b')).toBe('a,b')
-	})
-
-	it('keeps a mid-string BOM untouched', () => {
-		expect(stripBom('a﻿b')).toBe('a﻿b')
-	})
-})
 
 describe('resolveParseOptions', () => {
 	it('merges defaults with the given options', () => {
@@ -165,16 +147,6 @@ describe('inferColumnType', () => {
 	})
 })
 
-describe('positionalColumns', () => {
-	it('generates 1-based positional names', () => {
-		expect(positionalColumns(3)).toEqual(['column1', 'column2', 'column3'])
-	})
-
-	it('returns an empty list for width 0', () => {
-		expect(positionalColumns(0)).toEqual([])
-	})
-})
-
 describe('uniqueName', () => {
 	it('returns the name unchanged when not taken', () => {
 		expect(uniqueName('a', new Set())).toBe('a')
@@ -256,16 +228,25 @@ describe('needsQuote', () => {
 	})
 })
 
-describe('escapeQuotes', () => {
-	it('doubles every quote occurrence', () => {
-		expect(escapeQuotes('a"b"c', '"')).toBe('a""b""c')
+describe('wrapQuoted', () => {
+	it('escapes with doubled quote characters under double escape', () => {
+		const options = resolveRenderOptions({ escape: 'double' })
+		expect(wrapQuoted('a"b"c', options)).toBe('"a""b""c"')
 	})
-})
 
-describe('escapeBackslashes', () => {
-	it('prefixes each quote with a backslash and doubles literal backslashes', () => {
-		expect(escapeBackslashes('a"b', '"')).toBe('a\\"b')
-		expect(escapeBackslashes('a\\b', '"')).toBe('a\\\\b')
+	it('escapes with a backslash under backslash escape, doubling literal backslashes', () => {
+		const options = resolveRenderOptions({ escape: 'backslash' })
+		expect(wrapQuoted('a"b', options)).toBe('"a\\"b"')
+		expect(wrapQuoted('a\\b', options)).toBe('"a\\\\b"')
+	})
+
+	it('uses a custom quote character', () => {
+		const options = resolveRenderOptions({ quote: "'", delimiter: ',' })
+		expect(wrapQuoted("a'b", options)).toBe("'a''b'")
+	})
+
+	it('is the policy selected by quoteStyleToPolicy for "always"', () => {
+		expect(quoteStyleToPolicy('always')).toBe(wrapQuoted)
 	})
 })
 
@@ -288,13 +269,6 @@ describe('quoteMinimal', () => {
 	})
 })
 
-describe('quoteAlways', () => {
-	it('quotes every field unconditionally', () => {
-		const options = resolveRenderOptions({ quotes: 'always' })
-		expect(quoteAlways('plain', options)).toBe('"plain"')
-	})
-})
-
 describe('quoteNonnumeric', () => {
 	it('quotes unless the field is a plain number', () => {
 		const options = resolveRenderOptions({ quotes: 'nonnumeric' })
@@ -308,8 +282,8 @@ describe('quoteStyleToPolicy', () => {
 		expect(quoteStyleToPolicy('minimal')).toBe(quoteMinimal)
 	})
 
-	it('selects quoteAlways for "always"', () => {
-		expect(quoteStyleToPolicy('always')).toBe(quoteAlways)
+	it('selects wrapQuoted for "always"', () => {
+		expect(quoteStyleToPolicy('always')).toBe(wrapQuoted)
 	})
 
 	it('selects quoteNonnumeric for "nonnumeric"', () => {

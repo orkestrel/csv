@@ -13,20 +13,16 @@ import type {
 	RowResult,
 } from './types.js'
 import {
+	BOM,
 	BOOLEAN_FALSE,
 	BOOLEAN_TRUE,
 	INTEGER_PATTERN,
 	MAX_ERRORS,
+	POSITIONAL_COLUMN_PREFIX,
 	REAL_PATTERN,
 } from './constants.js'
 import { CSVError } from './errors.js'
-import {
-	inferColumnType,
-	positionalColumns,
-	resolveParseOptions,
-	stripBom,
-	uniqueColumns,
-} from './helpers.js'
+import { inferColumnType, resolveParseOptions, uniqueColumns } from './helpers.js'
 
 // The CSV tokenizer + table-builder spine (AGENTS §5 / §14). Every step is a
 // flat, exported leaf threading a `Position` through the source text - no
@@ -343,7 +339,7 @@ export function scanRecord(
  */
 export function readRecords(input: string, options?: ParseOptions): RecordsResult {
 	const resolved = resolveParseOptions(options)
-	const text = stripBom(input)
+	const text = input.startsWith(BOM) ? input.slice(BOM.length) : input
 	const errors: CSVError[] = []
 	const records: RawRecord[] = []
 
@@ -394,8 +390,8 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
  * `header: true` disambiguates via {@link uniqueColumns}, collecting
  * `EMPTY_HEADER` for a blank raw name and `DUPLICATE_HEADER` for a repeat of
  * an earlier raw name, both positioned at the header record's
- * {@link Position}. `header: false` uses {@link positionalColumns} sized to
- * the widest record, and every record is body.
+ * {@link Position}. `header: false` generates positional names sized to the
+ * widest record, and every record is body.
  *
  * @param records - The raw records (from {@link readRecords})
  * @param options - The resolved parse options
@@ -414,7 +410,11 @@ export function deriveHeader(
 ): HeaderResult {
 	if (!options.header) {
 		const width = records.reduce((max, record) => Math.max(max, record.fields.length), 0)
-		return { columns: positionalColumns(width), body: records, errors: [] }
+		const columns = Array.from(
+			{ length: width },
+			(_, index) => `${POSITIONAL_COLUMN_PREFIX}${index + 1}`,
+		)
+		return { columns, body: records, errors: [] }
 	}
 
 	const first = records[0]

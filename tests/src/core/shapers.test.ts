@@ -1,5 +1,5 @@
 import type { ColumnType } from '@src/core'
-import { columnTypeShape, csvTableShape } from '@src/core'
+import { columnTypeShape, csvTableShape, isCSVTable } from '@src/core'
 import { createContract } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
 
@@ -77,5 +77,20 @@ describe('csvTableShape', () => {
 	it('rejects a value missing required keys', () => {
 		expect(contract.is({ columns: ['a'] })).toBe(false)
 		expect(contract.is({ rows: [] })).toBe(false)
+	})
+
+	it('agrees with isCSVTable across a shared fixture set (parse ↔ guard soundness, AGENTS §14)', () => {
+		const fixtures: readonly unknown[] = [
+			{ columns: ['a', 'b'], rows: [{ a: 1, b: 'x' }] },
+			{ columns: ['a'], rows: [Object.assign(Object.create(null), { a: 1 })] },
+			{},
+			{ columns: 'x' },
+			{ columns: [], rows: [1] },
+			null,
+			[],
+		]
+		for (const fixture of fixtures) {
+			expect(contract.is(fixture)).toBe(isCSVTable(fixture))
+		}
 	})
 })

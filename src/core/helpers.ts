@@ -39,22 +39,6 @@ import { isRowList } from './validators.js'
 // `Number.isSafeInteger` - never calling the `parsers.ts` coercers.
 
 /**
- * Strip a single leading UTF-8 byte-order-mark (U+FEFF) from `input`, if
- * present - the BOM some tools prepend to CSV files.
- *
- * @param input - The raw text, possibly BOM-prefixed
- * @returns `input` with exactly one leading BOM removed; unchanged otherwise
- *
- * @example
- * ```ts
- * stripBom('﻿a,b') // 'a,b'
- * ```
- */
-export function stripBom(input: string): string {
-	return input.startsWith(BOM) ? input.slice(BOM.length) : input
-}
-
-/**
  * Validate a delimiter / quote pair shared by both {@link resolveParseOptions}
  * and {@link resolveRenderOptions} - each must be exactly one character, they
  * must differ, and neither may be CR, LF, or the BOM character.
@@ -128,22 +112,6 @@ export function resolveRenderOptions(options?: RenderOptions): ResolvedRenderOpt
 	if (resolved.newline !== '\n' && resolved.newline !== '\r\n')
 		throw new CSVError('INVALID_OPTION', "newline must be '\\n' or '\\r\\n'")
 	return resolved
-}
-
-/**
- * Generate positional column names (`column1`, `column2`, …) for a header-less
- * table of the given field width.
- *
- * @param width - The number of columns
- * @returns `width` positional names, 1-based
- *
- * @example
- * ```ts
- * positionalColumns(3) // ['column1', 'column2', 'column3']
- * ```
- */
-export function positionalColumns(width: number): readonly string[] {
-	return Array.from({ length: width }, (_, index) => `${POSITIONAL_COLUMN_PREFIX}${index + 1}`)
 }
 
 /**
@@ -339,48 +307,16 @@ export function needsQuote(field: string, options: ResolvedRenderOptions): boole
 }
 
 /**
- * Escape a quote character by doubling every occurrence - the `'double'`
- * {@link EscapeStyle}.
- *
- * @param field - The field text (already known to need quoting)
- * @param quote - The quote character to escape
- * @returns `field` with every `quote` occurrence doubled
- *
- * @example
- * ```ts
- * escapeQuotes('a"b', '"') // 'a""b'
- * ```
- */
-export function escapeQuotes(field: string, quote: string): string {
-	return field.split(quote).join(quote + quote)
-}
-
-/**
- * Escape a quote character by prefixing it (and every literal backslash)
- * with a backslash - the `'backslash'` {@link EscapeStyle}.
- *
- * @param field - The field text (already known to need quoting)
- * @param quote - The quote character to escape
- * @returns `field` with every backslash doubled and every `quote` prefixed with `\`
- *
- * @example
- * ```ts
- * escapeBackslashes('a"b', '"')  // 'a\\"b'
- * escapeBackslashes('a\\b', '"') // 'a\\\\b'
- * ```
- */
-export function escapeBackslashes(field: string, quote: string): string {
-	return field.split('\\').join('\\\\').split(quote).join(`\\${quote}`)
-}
-
-/**
  * Wrap `field` in quotes, escaping per `options.escape` - the shared
  * quote-and-escape step every quoting policy applies once it decides `field`
- * needs quoting.
+ * needs quoting; it IS the `'always'` {@link QuoteStyle} as well (every field
+ * quoted unconditionally).
  *
  * @param field - The field text, already known to need quoting
  * @param options - The resolved render options
- * @returns `field` wrapped in `options.quote`, escaped per `options.escape`
+ * @returns `field` wrapped in `options.quote`, escaped per `options.escape` -
+ * `'double'` doubles every `quote` occurrence; `'backslash'` doubles every
+ * literal backslash and prefixes every `quote` with a backslash
  *
  * @example
  * ```ts
@@ -390,8 +326,8 @@ export function escapeBackslashes(field: string, quote: string): string {
 export function wrapQuoted(field: string, options: ResolvedRenderOptions): string {
 	const escaped =
 		options.escape === 'double'
-			? escapeQuotes(field, options.quote)
-			: escapeBackslashes(field, options.quote)
+			? field.split(options.quote).join(options.quote + options.quote)
+			: field.split('\\').join('\\\\').split(options.quote).join(`\\${options.quote}`)
 	return `${options.quote}${escaped}${options.quote}`
 }
 
@@ -411,22 +347,6 @@ export function wrapQuoted(field: string, options: ResolvedRenderOptions): strin
  */
 export function quoteMinimal(field: string, options: ResolvedRenderOptions): string {
 	return needsQuote(field, options) ? wrapQuoted(field, options) : field
-}
-
-/**
- * The `'always'` {@link QuoteStyle} - quotes every field unconditionally.
- *
- * @param field - The already-sanitized field text
- * @param options - The resolved render options
- * @returns `field`, quoted and escaped
- *
- * @example
- * ```ts
- * quoteAlways('plain', resolveRenderOptions()) // '"plain"'
- * ```
- */
-export function quoteAlways(field: string, options: ResolvedRenderOptions): string {
-	return wrapQuoted(field, options)
 }
 
 /**
@@ -456,7 +376,7 @@ export function quoteNonnumeric(field: string, options: ResolvedRenderOptions): 
  * @param columns - The column order to render, in order
  * @param options - The resolved render options
  * @param quote - The quoting policy function to apply to each field (see
- * {@link quoteMinimal} / {@link quoteAlways} / {@link quoteNonnumeric})
+ * {@link quoteMinimal} / {@link wrapQuoted} / {@link quoteNonnumeric})
  * @returns The rendered line, columns joined by `options.delimiter`
  *
  * @example
@@ -483,11 +403,12 @@ export function renderRecord(
  * Select the quoting-policy function for a resolved `options.quotes`.
  *
  * @param quotes - The resolved {@link QuoteStyle}
- * @returns {@link quoteMinimal}, {@link quoteAlways}, or {@link quoteNonnumeric}
+ * @returns {@link quoteMinimal}, {@link wrapQuoted} (the `'always'` policy),
+ * or {@link quoteNonnumeric}
  *
  * @example
  * ```ts
- * quoteStyleToPolicy('always') // quoteAlways
+ * quoteStyleToPolicy('always') // wrapQuoted
  * ```
  */
 export function quoteStyleToPolicy(
@@ -495,7 +416,7 @@ export function quoteStyleToPolicy(
 ): (field: string, options: ResolvedRenderOptions) => string {
 	switch (quotes) {
 		case 'always':
-			return quoteAlways
+			return wrapQuoted
 		case 'nonnumeric':
 			return quoteNonnumeric
 		case 'minimal':
