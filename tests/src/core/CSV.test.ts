@@ -2,7 +2,7 @@ import type { CSVTable, ExportOptions } from '@src/core'
 import { stringShape } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
 import { assertAndNarrow } from '../../setup.js'
-import { CSV, isCSVError } from '@src/core'
+import { CSV, deriveShapes, isCSVError } from '@src/core'
 
 // The CSV CLASS — the stateful wrapper around a parsed CSVTable, exposing
 // query (find/filter/reduce), rewrite (map), streaming, JSON interop, and
@@ -238,5 +238,17 @@ describe('CSV — export', () => {
 		expect(typeof result.key).toBe('string')
 		expect(typeof result.columns).toBe('object')
 		expect(typeof result.schema).toBe('object')
+	})
+
+	it('derives the same columns as the standalone deriveShapes helper for a mixed table', () => {
+		const table: CSVTable = {
+			columns: ['name', 'age', 'active', 'meta'],
+			rows: [
+				{ name: 'a', age: 1, active: true, meta: 'x' },
+				{ name: 'b', age: 2, active: false, meta: 1 },
+			],
+		}
+		const csv = new CSV(table)
+		expect(csv.export().columns).toEqual(deriveShapes(table))
 	})
 })

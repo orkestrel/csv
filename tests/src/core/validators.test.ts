@@ -1,4 +1,4 @@
-import { isCSVTable, isColumnType, isRow } from '@src/core'
+import { isCSVTable, isColumnType, isRow, isRowList } from '@src/core'
 import { describe, expect, it } from 'vitest'
 
 // Every guard here is total (AGENTS section 14): never throws, returns
@@ -59,6 +59,24 @@ describe('isCSVTable', () => {
 		expect(isCSVTable(null)).toBe(false)
 		expect(isCSVTable(undefined)).toBe(false)
 		expect(isCSVTable('table')).toBe(false)
+	})
+})
+
+describe('isRowList', () => {
+	it('accepts a readonly Row[] value', () => {
+		expect(isRowList([{ a: 1 }, { b: 2 }])).toBe(true)
+	})
+
+	it('accepts an empty array', () => {
+		expect(isRowList([])).toBe(true)
+	})
+
+	it('rejects a CSVTable value', () => {
+		expect(isRowList({ columns: ['a'], rows: [{ a: 1 }] })).toBe(false)
+	})
+
+	it('rejects a CSVTable with empty columns/rows', () => {
+		expect(isRowList({ columns: [], rows: [] })).toBe(false)
 	})
 })
 

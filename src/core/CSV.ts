@@ -1,6 +1,5 @@
 import { createContract, objectShape } from '@orkestrel/contract'
 import type {
-	Columns,
 	CSVInterface,
 	CSVParseResult,
 	CSVTable,
@@ -10,9 +9,8 @@ import type {
 	TableExport,
 } from './types.js'
 import { CSVError } from './errors.js'
-import { inferColumnType } from './helpers.js'
+import { deriveShapes } from './helpers.js'
 import { parseCSV } from './parsers.js'
-import { columnTypeShape } from './shapers.js'
 
 /**
  * A parsed, queryable CSV document - wraps a typed {@link CSVTable} with the
@@ -203,40 +201,8 @@ export class CSV implements CSVInterface {
 				'INVALID_OPTION',
 				`export key '${String(key)}' is not one of the table's columns`,
 			)
-		const columns = options?.columns ?? this.#deriveColumns()
+		const columns = options?.columns ?? deriveShapes(this.#result.table)
 		const schema = createContract(objectShape(columns)).schema
 		return { key, columns, schema }
-	}
-
-	// Derives one ContractShape per table column from that column's cell
-	// values across all rows (excluding undefined/empty-string cells).
-	#deriveColumns(): Columns {
-		const columns: Record<string, ReturnType<typeof columnTypeShape>> = {}
-		for (const column of this.#result.table.columns) {
-			const values = this.#result.table.rows
-				.map((row) => row[column])
-				.filter((value) => value !== undefined && value !== '')
-			if (values.length === 0) {
-				columns[column] = columnTypeShape('text')
-			} else if (this.#isStringColumn(values)) {
-				columns[column] = columnTypeShape(inferColumnType(values))
-			} else if (values.every((value) => typeof value === 'number')) {
-				columns[column] = columnTypeShape(
-					values.every((value) => Number.isSafeInteger(value)) ? 'integer' : 'real',
-				)
-			} else if (values.every((value) => typeof value === 'boolean')) {
-				columns[column] = columnTypeShape('boolean')
-			} else {
-				columns[column] = columnTypeShape('json')
-			}
-		}
-		return columns
-	}
-
-	// A type-guard leaf narrowing a mixed cell-value array to an all-string
-	// column, so inferColumnType (which takes readonly string[]) is called
-	// without a cast.
-	#isStringColumn(values: readonly unknown[]): values is readonly string[] {
-		return values.every((value) => typeof value === 'string')
 	}
 }

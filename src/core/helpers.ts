@@ -15,6 +15,7 @@ import {
 } from './constants.js'
 import { CSVError } from './errors.js'
 import { columnTypeShape } from './shapers.js'
+import { isRowList } from './validators.js'
 
 // Pure, total helper leaves the parser / renderer compose (AGENTS §5 / §14).
 // Every function here is a functional-core leaf: referentially transparent,
@@ -497,21 +498,6 @@ export function selectQuotePolicy(
 		case 'minimal':
 			return quoteMinimal
 	}
-}
-
-/**
- * Narrow a `CSVTable | readonly Row[]` union to its row-list member.
- *
- * @remarks
- * `Array.isArray` alone does not narrow a `readonly Row[]` union member (a
- * TypeScript limitation with readonly arrays) - an explicit type predicate
- * narrows reliably in both branches.
- *
- * @param source - A {@link CSVTable}, or a plain readonly row list
- * @returns `true` when `source` is a plain row list
- */
-export function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
-	return Array.isArray(source)
 }
 
 /**
