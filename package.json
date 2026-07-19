@@ -59,6 +59,9 @@
 		"build:src:core": "vite build --config configs/src/vite.core.config.ts && npm run copy dist/src/core/index.d.ts dist/src/core/index.d.cts",
 		"prepublishOnly": "npm run format:check && npm run lint:check && npm run check && npm run build && npm test"
 	},
+	"dependencies": {
+		"@orkestrel/contract": "^0.0.5"
+	},
 	"devDependencies": {
 		"@microsoft/api-extractor": "^7.58.11",
 		"@orkestrel/guide": "^0.0.5",
