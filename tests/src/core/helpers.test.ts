@@ -293,12 +293,18 @@ describe('renderCSV', () => {
 	})
 
 	it('renders a Row[] input using first-seen key union order', () => {
-		const csv = renderCSV([{ a: 1, b: 2 }, { b: 3, c: 4 }])
+		const csv = renderCSV([
+			{ a: 1, b: 2 },
+			{ b: 3, c: 4 },
+		])
 		expect(csv).toBe('a,b,c\r\n1,2,\r\n,3,4')
 	})
 
 	it('honors an explicit columns subset', () => {
-		const csv = renderCSV({ columns: ['a', 'b', 'c'], rows: [{ a: 1, b: 2, c: 3 }] }, { columns: ['c', 'a'] })
+		const csv = renderCSV(
+			{ columns: ['a', 'b', 'c'], rows: [{ a: 1, b: 2, c: 3 }] },
+			{ columns: ['c', 'a'] },
+		)
 		expect(csv).toBe('c,a\r\n3,1')
 	})
 
@@ -326,7 +332,16 @@ describe('renderCSV', () => {
 		['\n', '\n'],
 		['\r\n', '\r\n'],
 	])('uses the requested newline (%j)', (newline) => {
-		const csv = renderCSV({ columns: ['a', 'b'], rows: [{ a: 1, b: 2 }, { a: 3, b: 4 }] }, { newline })
+		const csv = renderCSV(
+			{
+				columns: ['a', 'b'],
+				rows: [
+					{ a: 1, b: 2 },
+					{ a: 3, b: 4 },
+				],
+			},
+			{ newline },
+		)
 		expect(csv).toBe(`a,b${newline}1,2${newline}3,4`)
 	})
 
@@ -367,7 +382,10 @@ describe('renderTSV', () => {
 
 describe('assertAndNarrow usage sanity', () => {
 	it('narrows a value satisfying a guard', () => {
-		const value = assertAndNarrow((candidate): candidate is string => typeof candidate === 'string', 'ok')
+		const value = assertAndNarrow(
+			(candidate): candidate is string => typeof candidate === 'string',
+			'ok',
+		)
 		expect(value).toBe('ok')
 	})
 })

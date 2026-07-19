@@ -27,7 +27,11 @@ export class CSVError extends Error {
 	constructor(
 		code: CSVErrorCode,
 		message: string,
-		location?: Readonly<{ readonly line?: number; readonly column?: number; readonly offset?: number }>,
+		location?: Readonly<{
+			readonly line?: number
+			readonly column?: number
+			readonly offset?: number
+		}>,
 		context?: Readonly<Record<string, unknown>>,
 	) {
 		super(message)

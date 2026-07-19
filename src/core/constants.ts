@@ -45,7 +45,15 @@ export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = 
  * formula-triggering - a field starting with any of these is prefixed with a
  * protective `'` when `RenderOptions.sanitize` is `true`.
  */
-export const SANITIZE_PREFIXES: ReadonlySet<string> = new Set(['=', '+', '-', '@', '\t', '\r', '\n'])
+export const SANITIZE_PREFIXES: ReadonlySet<string> = new Set([
+	'=',
+	'+',
+	'-',
+	'@',
+	'\t',
+	'\r',
+	'\n',
+])
 
 /**
  * The prefix used to name positional columns (`column1`, `column2`, …) when

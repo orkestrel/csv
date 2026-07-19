@@ -1,5 +1,14 @@
 import { createContract, objectShape } from '@orkestrel/contract'
-import type { Columns, CSVInterface, CSVParseResult, CSVTable, ExportOptions, ParseOptions, Row, TableExport } from './types.js'
+import type {
+	Columns,
+	CSVInterface,
+	CSVParseResult,
+	CSVTable,
+	ExportOptions,
+	ParseOptions,
+	Row,
+	TableExport,
+} from './types.js'
 import { CSVError } from './errors.js'
 import { inferColumnType } from './helpers.js'
 import { parseCSV } from './parsers.js'
@@ -32,7 +41,8 @@ export class CSV implements CSVInterface {
 	#result: CSVParseResult
 
 	constructor(input: string | CSVTable, options?: ParseOptions) {
-		this.#result = typeof input === 'string' ? parseCSV(input, options) : { table: input, errors: [] }
+		this.#result =
+			typeof input === 'string' ? parseCSV(input, options) : { table: input, errors: [] }
 	}
 
 	/** The stored {@link CSVTable} (columns + rows). */
@@ -95,7 +105,10 @@ export class CSV implements CSVInterface {
 	 * ```
 	 */
 	map(rewrite: (row: Row, index: number) => Row): CSVInterface {
-		const table: CSVTable = { columns: this.#result.table.columns, rows: this.#result.table.rows.map(rewrite) }
+		const table: CSVTable = {
+			columns: this.#result.table.columns,
+			rows: this.#result.table.rows.map(rewrite),
+		}
 		const csv = new CSV(table)
 		csv.#carry(this.#result.errors)
 		return csv
@@ -186,7 +199,10 @@ export class CSV implements CSVInterface {
 	export(options?: ExportOptions): TableExport {
 		const key = options?.key ?? this.#result.table.columns[0]
 		if (key === undefined || !this.#result.table.columns.includes(key))
-			throw new CSVError('INVALID_OPTION', `export key '${String(key)}' is not one of the table's columns`)
+			throw new CSVError(
+				'INVALID_OPTION',
+				`export key '${String(key)}' is not one of the table's columns`,
+			)
 		const columns = options?.columns ?? this.#deriveColumns()
 		const schema = createContract(objectShape(columns)).schema
 		return { key, columns, schema }
@@ -205,7 +221,9 @@ export class CSV implements CSVInterface {
 			} else if (this.#isStringColumn(values)) {
 				columns[column] = columnTypeShape(inferColumnType(values))
 			} else if (values.every((value) => typeof value === 'number')) {
-				columns[column] = columnTypeShape(values.every((value) => Number.isSafeInteger(value)) ? 'integer' : 'real')
+				columns[column] = columnTypeShape(
+					values.every((value) => Number.isSafeInteger(value)) ? 'integer' : 'real',
+				)
 			} else if (values.every((value) => typeof value === 'boolean')) {
 				columns[column] = columnTypeShape('boolean')
 			} else {

@@ -77,4 +77,11 @@ export const isCSVTable: Guard<CSVTable> = recordOf({
  * isColumnType('float')   // false
  * ```
  */
-export const isColumnType: Guard<ColumnType> = literalOf('text', 'integer', 'real', 'boolean', 'json', 'blob')
+export const isColumnType: Guard<ColumnType> = literalOf(
+	'text',
+	'integer',
+	'real',
+	'boolean',
+	'json',
+	'blob',
+)

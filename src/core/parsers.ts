@@ -1,7 +1,21 @@
-import type { CSVParseResult, ParseOptions, RawField, RawRecord, RecordsResult, Row } from './types.js'
+import type {
+	CSVParseResult,
+	ParseOptions,
+	RawField,
+	RawRecord,
+	RecordsResult,
+	Row,
+} from './types.js'
 import { MAX_ERRORS } from './constants.js'
 import { CSVError } from './errors.js'
-import { coerceCell, inferColumnType, positionalColumns, resolveParseOptions, stripBom, uniqueColumns } from './helpers.js'
+import {
+	coerceCell,
+	inferColumnType,
+	positionalColumns,
+	resolveParseOptions,
+	stripBom,
+	uniqueColumns,
+} from './helpers.js'
 
 // The CSV tokenizer + table-builder spine (AGENTS §5 / §14). `readRecords` is
 // a hand-written, single-pass character scanner - no regex, linear time.
@@ -93,7 +107,8 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 		let start = 0
 		let end = value.length
 		while (start < end && (value.charAt(start) === ' ' || value.charAt(start) === '\t')) start += 1
-		while (end > start && (value.charAt(end - 1) === ' ' || value.charAt(end - 1) === '\t')) end -= 1
+		while (end > start && (value.charAt(end - 1) === ' ' || value.charAt(end - 1) === '\t'))
+			end -= 1
 		return value.slice(start, end)
 	}
 
@@ -107,7 +122,14 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 			const char = text.charAt(index)
 			if (char === resolved.delimiter || isBreakChar(char)) break
 			if (char === resolved.quote) {
-				pushError(() => new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', { line, column, offset: index }))
+				pushError(
+					() =>
+						new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', {
+							line,
+							column,
+							offset: index,
+						}),
+				)
 			}
 			value += char
 			advance()
@@ -160,8 +182,19 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 				if (index >= length) return { value, quoted: true }
 				const after = text.charAt(index)
 				if (after === resolved.delimiter || isBreakChar(after)) return { value, quoted: true }
-				pushError(() => new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', { line, column, offset: index }))
-				while (index < length && text.charAt(index) !== resolved.delimiter && !isBreakChar(text.charAt(index))) {
+				pushError(
+					() =>
+						new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', {
+							line,
+							column,
+							offset: index,
+						}),
+				)
+				while (
+					index < length &&
+					text.charAt(index) !== resolved.delimiter &&
+					!isBreakChar(text.charAt(index))
+				) {
 					value += text.charAt(index)
 					advance()
 				}
@@ -213,7 +246,8 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 		}
 
 		const first = rawFields[0]
-		const isBlank = rawFields.length === 1 && first !== undefined && !first.quoted && first.value === ''
+		const isBlank =
+			rawFields.length === 1 && first !== undefined && !first.quoted && first.value === ''
 		if (isBlank && resolved.blanks === 'skip') continue
 
 		if (resolved.limit > 0 && emitted >= resolved.limit) {
@@ -289,7 +323,8 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 	// otherwise consume one slot from the cap. Bump the raw limit by one to
 	// exempt the header record; `header: false` passes `options` through
 	// unchanged since there is no header to exempt.
-	const readOptions = resolved.header && resolved.limit > 0 ? { ...options, limit: resolved.limit + 1 } : options
+	const readOptions =
+		resolved.header && resolved.limit > 0 ? { ...options, limit: resolved.limit + 1 } : options
 	const { records, errors: tokenErrors } = readRecords(input, readOptions)
 
 	// Fail fast: under `strict`, throw the very first error in discovery
@@ -328,7 +363,9 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 		const seen: string[] = []
 		rawNames.forEach((name, position) => {
 			if (name.trim() === '') {
-				pushError(() => new CSVError('EMPTY_HEADER', 'header name is empty', location, { index: position }))
+				pushError(
+					() => new CSVError('EMPTY_HEADER', 'header name is empty', location, { index: position }),
+				)
 			} else if (seen.includes(name)) {
 				pushError(
 					() =>
@@ -345,7 +382,11 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 
 	// Builds one data record into a null-prototype `Row`, padding/dropping to
 	// match the column count `columns.length` per `options.ragged`.
-	function buildRow(record: RawRecord, columns: readonly string[], position: number): Row | undefined {
+	function buildRow(
+		record: RawRecord,
+		columns: readonly string[],
+		position: number,
+	): Row | undefined {
 		const width = columns.length
 		const fields = record.fields
 		const actual = fields.length

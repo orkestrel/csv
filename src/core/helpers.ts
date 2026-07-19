@@ -55,7 +55,8 @@ export function stripBom(input: string): string {
 export function assertValidSeparators(delimiter: string, quote: string): void {
 	if (delimiter.length !== 1)
 		throw new CSVError('INVALID_OPTION', 'delimiter must be exactly one character')
-	if (quote.length !== 1) throw new CSVError('INVALID_OPTION', 'quote must be exactly one character')
+	if (quote.length !== 1)
+		throw new CSVError('INVALID_OPTION', 'quote must be exactly one character')
 	if (delimiter === quote)
 		throw new CSVError('INVALID_OPTION', 'delimiter and quote must not be the same character')
 	const forbidden: ReadonlySet<string> = new Set(['\r', '\n', BOM])
@@ -293,7 +294,10 @@ export function sanitizeField(field: string): string {
  * quoteField('plain', resolveRenderOptions()) // 'plain'
  * ```
  */
-export function quoteField(field: string, options: ReturnType<typeof resolveRenderOptions>): string {
+export function quoteField(
+	field: string,
+	options: ReturnType<typeof resolveRenderOptions>,
+): string {
 	const needsQuote =
 		field.includes(options.delimiter) ||
 		field.includes(options.quote) ||
@@ -384,7 +388,8 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
 	const columns = resolveColumns(input)
 	const rows = resolveRows(input)
 	const lines: string[] = []
-	if (resolved.header) lines.push(columns.map((column) => formatField(column)).join(resolved.delimiter))
+	if (resolved.header)
+		lines.push(columns.map((column) => formatField(column)).join(resolved.delimiter))
 	for (const row of rows) lines.push(rowLine(row, columns))
 	const body = lines.join(resolved.newline)
 	return resolved.bom ? `${BOM}${body}` : body

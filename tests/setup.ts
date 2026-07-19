@@ -27,7 +27,8 @@ export const TEST_SEED = 42
  * ```
  */
 export function assertAndNarrow<T>(guard: (value: unknown) => value is T, value: unknown): T {
-	if (!guard(value)) throw new Error(`expected value to satisfy guard, got ${JSON.stringify(value)}`)
+	if (!guard(value))
+		throw new Error(`expected value to satisfy guard, got ${JSON.stringify(value)}`)
 	return value
 }
 

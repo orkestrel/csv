@@ -204,7 +204,7 @@ describe('readRecords', () => {
 		expect(readRecords('﻿')).toEqual({ records: [], errors: [] })
 	})
 
-	it('reports each record\'s start line/column/offset', () => {
+	it("reports each record's start line/column/offset", () => {
 		const { records } = readRecords('a,b\n1,2')
 		expect(records[0]).toMatchObject({ line: 1, column: 1, offset: 0 })
 		expect(records[1]).toMatchObject({ line: 2, column: 1, offset: 4 })
@@ -401,6 +401,8 @@ describe('parseCSV', () => {
 		expect(errors).toHaveLength(MAX_ERRORS)
 		expect(errors.every((error) => error.code === 'RAGGED_ROW')).toBe(true)
 		expect(table.rows).toHaveLength(MAX_ERRORS + 10)
-		expect(table.rows.every((row) => row.a === '1' && row.b === '2' && row.c === undefined)).toBe(true)
+		expect(table.rows.every((row) => row.a === '1' && row.b === '2' && row.c === undefined)).toBe(
+			true,
+		)
 	})
 })
