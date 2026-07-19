@@ -8,11 +8,11 @@ import { CSV } from './CSV.js'
  * {@link CSVTable}.
  *
  * @remarks
- * Given a `string`, runs the parser to build the {@link CSVTable} — a
+ * Given a `string`, runs the parser to build the {@link CSVTable} - a
  * malformed record is collected into `errors` unless `options.strict` is set,
  * in which case a {@link CSVError} is thrown immediately; an invalid
  * `options` value throws a {@link CSVError} with code `INVALID_OPTION`. Given
- * a {@link CSVTable}, the table is adopted AS-IS and is NOT re-validated —
+ * a {@link CSVTable}, the table is adopted AS-IS and is NOT re-validated -
  * `errors` is empty in that case.
  *
  * @param input - A CSV string to parse, or an already-parsed {@link CSVTable}
@@ -33,12 +33,12 @@ export function createCSV(input: string | CSVTable, options?: ParseOptions): CSV
 
 /**
  * Compile a {@link Columns} map into a {@link ContractInterface} for a
- * {@link Row} — a guard, coercing parser, JSON Schema, and seeded generator
+ * {@link Row} - a guard, coercing parser, JSON Schema, and seeded generator
  * from one shape declaration (AGENTS §14).
  *
  * @remarks
  * The bridge for typed export/import interop with `@orkestrel/database`
- * (never imported here) — the returned contract's `schema` is structurally
+ * (never imported here) - the returned contract's `schema` is structurally
  * identical to what {@link CSVInterface.export}'s `TableExport.schema`
  * produces for the same `columns`.
  *

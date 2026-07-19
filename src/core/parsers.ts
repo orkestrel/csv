@@ -4,13 +4,13 @@ import { CSVError } from './errors.js'
 import { coerceCell, inferColumnType, positionalColumns, resolveParseOptions, stripBom, uniqueColumns } from './helpers.js'
 
 // The CSV tokenizer + table-builder spine (AGENTS §5 / §14). `readRecords` is
-// a hand-written, single-pass character scanner — no regex, linear time.
+// a hand-written, single-pass character scanner - no regex, linear time.
 // `parseCSV` builds on it to assemble the typed `CSVTable`. Every internal
 // step is a nested inner function (the markdown `renderCSV`-style pattern) so
 // the only exported surface for this engine is the two functions themselves.
 
 /**
- * Splits `input` into raw, un-mapped {@link RawRecord}s — the tokenizer phase
+ * Splits `input` into raw, un-mapped {@link RawRecord}s - the tokenizer phase
  * beneath {@link parseCSV}. A hand-written, linear-time character scanner: no
  * regex, one pass over the text.
  *
@@ -27,10 +27,10 @@ import { coerceCell, inferColumnType, positionalColumns, resolveParseOptions, st
  *
  * @param input - The raw CSV text (BOM optional)
  * @param options - Parse options (see {@link resolveParseOptions}); `header`,
- * `ragged`, `infer`, and `strict` are ignored here — they apply only in
+ * `ragged`, `infer`, and `strict` are ignored here - they apply only in
  * {@link parseCSV}
  * @returns The raw records plus any errors collected while splitting
- * @throws {CSVError} `INVALID_OPTION` — see {@link resolveParseOptions}
+ * @throws {CSVError} `INVALID_OPTION` - see {@link resolveParseOptions}
  *
  * @example
  * ```ts
@@ -87,7 +87,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 		return false
 	}
 
-	// Strips leading/trailing spaces and tabs (never full-whitespace) — the
+	// Strips leading/trailing spaces and tabs (never full-whitespace) - the
 	// `trim` option applies to unquoted values only.
 	function trimSpacesTabs(value: string): string {
 		let start = 0
@@ -97,7 +97,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 		return value.slice(start, end)
 	}
 
-	// Scans one unquoted field — content runs until the delimiter, a record
+	// Scans one unquoted field - content runs until the delimiter, a record
 	// separator, or end-of-input. A quote char appearing mid-field (never at
 	// the start, which routes to `parseQuotedField` instead) is BAD_QUOTE'd
 	// and kept as a literal character.
@@ -245,7 +245,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 }
 
 /**
- * Parses `input` into a typed {@link CSVParseResult} — header mapping,
+ * Parses `input` into a typed {@link CSVParseResult} - header mapping,
  * ragged-row handling, and optional type inference on top of
  * {@link readRecords}.
  *
@@ -261,20 +261,20 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
  * silently; `'error'` excludes the row and records `RAGGED_ROW`). When
  * `infer` is `true`, every column is re-typed (via {@link inferColumnType} /
  * {@link coerceCell}) after all rows are built. `strict: true` throws at the
- * point the FIRST error is discovered — a tokenizer error immediately after
+ * point the FIRST error is discovered - a tokenizer error immediately after
  * {@link readRecords} returns (before any header/row-building/inference
  * work), or a header/row-building error the instant it would otherwise be
- * collected — instead of scanning to completion and throwing `errors[0]`;
+ * collected - instead of scanning to completion and throwing `errors[0]`;
  * the thrown error is identical to the `errors[0]` a non-strict call would
  * collect for the same input. Otherwise `parseCSV` never throws on malformed
- * data, and errors are returned in discovery order — never sorted.
- * `options.limit` caps the number of DATA records — the header record (when
+ * data, and errors are returned in discovery order - never sorted.
+ * `options.limit` caps the number of DATA records - the header record (when
  * `header: true`) is exempt from the cap.
  *
  * @param input - The raw CSV text (BOM optional)
  * @param options - Parse options (see {@link resolveParseOptions})
  * @returns The parsed table plus any errors collected
- * @throws {CSVError} `INVALID_OPTION` — see {@link resolveParseOptions}; or,
+ * @throws {CSVError} `INVALID_OPTION` - see {@link resolveParseOptions}; or,
  * when `strict` is `true`, the first collected parse error
  *
  * @example
@@ -285,7 +285,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 export function parseCSV(input: string, options?: ParseOptions): CSVParseResult {
 	const resolved = resolveParseOptions(options)
 	// `limit` caps DATA records (see TSDoc above), but `readRecords` caps RAW
-	// records header-agnostically — with `header: true` the header would
+	// records header-agnostically - with `header: true` the header would
 	// otherwise consume one slot from the cap. Bump the raw limit by one to
 	// exempt the header record; `header: false` passes `options` through
 	// unchanged since there is no header to exempt.
@@ -293,7 +293,7 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 	const { records, errors: tokenErrors } = readRecords(input, readOptions)
 
 	// Fail fast: under `strict`, throw the very first error in discovery
-	// order — a tokenizer error always precedes any table-building error — the
+	// order - a tokenizer error always precedes any table-building error - the
 	// instant it is known, before any header/row-building/inference work runs.
 	if (resolved.strict) {
 		const firstTokenError = tokenErrors[0]
@@ -405,7 +405,7 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 	}
 
 	// Re-types every cell (via `inferColumnType` / `coerceCell`) once all rows
-	// are built — mutates `rows` in place, a construction-time step on our own
+	// are built - mutates `rows` in place, a construction-time step on our own
 	// output, not on an input parameter.
 	function applyInference(columns: readonly string[], rows: readonly Row[]): void {
 		const types = columns.map((column) => {

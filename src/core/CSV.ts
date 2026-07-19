@@ -6,16 +6,16 @@ import { parseCSV } from './parsers.js'
 import { columnTypeShape } from './shapers.js'
 
 /**
- * A parsed, queryable CSV document — wraps a typed {@link CSVTable} with the
+ * A parsed, queryable CSV document - wraps a typed {@link CSVTable} with the
  * query (`find` / `filter` / `reduce`), rewrite (`map`), streaming, and
  * export operations {@link CSVInterface} declares.
  *
  * @remarks
  * - **Construction.** Given a `string`, the constructor runs {@link parseCSV}
  *   to build the {@link CSVTable}. Given a {@link CSVTable}, the table is
- *   adopted AS-IS and is NOT re-validated — a caller adopting an untrusted
+ *   adopted AS-IS and is NOT re-validated - a caller adopting an untrusted
  *   value should gate it with a guard first; `errors` is empty in that case.
- * - **Immutable.** {@link map} never mutates the stored table — it returns a
+ * - **Immutable.** {@link map} never mutates the stored table - it returns a
  *   NEW {@link CSV} instance. **Traversal order.** `find` / `filter` /
  *   `reduce` iterate `rows` in table order.
  *
@@ -87,7 +87,7 @@ export class CSV implements CSVInterface {
 	 * @returns A new {@link CSV} wrapping the same columns and the rewritten
 	 * rows; the original instance is never mutated
 	 * @remarks The returned instance carries the SAME `errors` as this
-	 * instance — they describe the source parse, which `map` does not repeat
+	 * instance - they describe the source parse, which `map` does not repeat
 	 *
 	 * @example
 	 * ```ts
@@ -101,7 +101,7 @@ export class CSV implements CSVInterface {
 		return csv
 	}
 
-	// Carries the source parse's errors onto a copy-on-write map() result —
+	// Carries the source parse's errors onto a copy-on-write map() result -
 	// a fresh CSV built from a plain CSVTable otherwise adopts an empty
 	// errors list, since the source parse is not repeated.
 	#carry(errors: readonly CSVError[]): void {
@@ -126,7 +126,7 @@ export class CSV implements CSVInterface {
 
 	/**
 	 * A web-standard {@link ReadableStream} over the table's rows (source
-	 * order) — a fresh, pull-based source per call.
+	 * order) - a fresh, pull-based source per call.
 	 *
 	 * @returns A `ReadableStream<Row>` that enqueues one row per `pull`
 	 *
@@ -154,10 +154,10 @@ export class CSV implements CSVInterface {
 	}
 
 	/**
-	 * Returns the stored {@link CSVTable} — the JSON-serializable projection.
+	 * Returns the stored {@link CSVTable} - the JSON-serializable projection.
 	 *
 	 * @returns The `{ columns, rows }` table
-	 * @remarks `JSON.stringify(csv)` therefore emits `{ columns, rows }` — the
+	 * @remarks `JSON.stringify(csv)` therefore emits `{ columns, rows }` - the
 	 * interop seam shared structurally with `@orkestrel/database`
 	 *
 	 * @example

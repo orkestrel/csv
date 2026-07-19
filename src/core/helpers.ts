@@ -17,14 +17,14 @@ import { CSVError } from './errors.js'
 // Every function here is a functional-core leaf: referentially transparent,
 // touching no external state, and (aside from the two option resolvers, which
 // throw on a programmer error per AGENTS §12) never throwing. `renderCSV` is
-// the one exception to "flat leaf" shape — it is the exported orchestration
+// the one exception to "flat leaf" shape - it is the exported orchestration
 // entry point whose sub-steps are nested inner functions, mirroring the
 // markdown package's `renderHTML` / `renderMarkdown` pattern, so the only
 // exported surface for that engine is `renderCSV` itself.
 
 /**
  * Strip a single leading UTF-8 byte-order-mark (U+FEFF) from `input`, if
- * present — the BOM some tools prepend to CSV files.
+ * present - the BOM some tools prepend to CSV files.
  *
  * @param input - The raw text, possibly BOM-prefixed
  * @returns `input` with exactly one leading BOM removed; unchanged otherwise
@@ -40,7 +40,7 @@ export function stripBom(input: string): string {
 
 /**
  * Validate a delimiter / quote pair shared by both {@link resolveParseOptions}
- * and {@link resolveRenderOptions} — each must be exactly one character, they
+ * and {@link resolveRenderOptions} - each must be exactly one character, they
  * must differ, and neither may be CR, LF, or the BOM character.
  *
  * @param delimiter - The candidate field delimiter
@@ -95,7 +95,7 @@ export function resolveParseOptions(options?: ParseOptions): Required<ParseOptio
  * render configuration.
  *
  * @param options - The caller's partial {@link RenderOptions}
- * @returns The resolved options (`columns` stays optional — it has no default)
+ * @returns The resolved options (`columns` stays optional - it has no default)
  * @throws {CSVError} `INVALID_OPTION` when `delimiter` / `quote` are invalid
  * (see {@link assertValidSeparators}), or `newline` is anything other than
  * `'\n'` or `'\r\n'`
@@ -117,7 +117,7 @@ export function resolveRenderOptions(
 
 /**
  * Conservatively infer a whole column's {@link ColumnType} from its raw
- * string values — never `'json'` or `'blob'` (those require an explicit
+ * string values - never `'json'` or `'blob'` (those require an explicit
  * {@link Columns} declaration). Empty-string cells are ignored entirely (they
  * neither confirm nor demote a type); a column with no non-empty cells is
  * `'text'`.
@@ -159,7 +159,7 @@ export function inferColumnType(values: readonly string[]): ColumnType {
 }
 
 /**
- * Coerce one raw cell value to its typed representation for `type` — the
+ * Coerce one raw cell value to its typed representation for `type` - the
  * inverse of stringifying a value for render.
  *
  * @param value - The raw cell text
@@ -212,7 +212,7 @@ export function positionalColumns(width: number): readonly string[] {
 }
 
 /**
- * Deterministically disambiguate a header's column names — an empty (or
+ * Deterministically disambiguate a header's column names - an empty (or
  * whitespace-only) name becomes positional, and a name that repeats an
  * earlier kept name is suffixed `_2`, `_3`, … until unique.
  *
@@ -229,7 +229,7 @@ export function uniqueColumns(names: readonly string[]): readonly string[] {
 	const kept: string[] = []
 	const seen = new Set<string>()
 
-	// Shared collision resolver — both a literal name and a generated
+	// Shared collision resolver - both a literal name and a generated
 	// positional name (from an empty/whitespace source name) run through this
 	// same suffix loop, so neither can collide with an already-kept name.
 	function resolveUnique(base: string): string {
@@ -254,7 +254,7 @@ export function uniqueColumns(names: readonly string[]): readonly string[] {
 
 /**
  * Guard a field against CSV/spreadsheet formula injection (the OWASP
- * CSV-injection guidance) — a field starting with a formula-triggering
+ * CSV-injection guidance) - a field starting with a formula-triggering
  * character is prefixed with a protective `'`.
  *
  * @param field - The raw field text (already stringified, not yet quoted)
@@ -278,7 +278,7 @@ export function sanitizeField(field: string): string {
 
 /**
  * Decide whether `field` needs quoting under `options.quotes` and, if so,
- * wrap and escape it — the renderer's one quoting/escaping leaf.
+ * wrap and escape it - the renderer's one quoting/escaping leaf.
  *
  * @param field - The already-sanitized field text
  * @param options - The resolved render options (see {@link resolveRenderOptions})
@@ -319,16 +319,16 @@ export function quoteField(field: string, options: ReturnType<typeof resolveRend
  * @remarks
  * Total: a `JSON.stringify` failure (a circular value) degrades to
  * `options.blank` instead of throwing. Columns default to `options.columns`,
- * or the source table's own `columns`, or — for a plain row list — the
+ * or the source table's own `columns`, or - for a plain row list - the
  * first-seen union of every row's keys. No trailing newline follows the last
  * record. The engine's sub-steps (column resolution, cell serialization,
- * sanitize + quote, row assembly) are nested inner functions — `renderCSV`
+ * sanitize + quote, row assembly) are nested inner functions - `renderCSV`
  * itself is the only exported surface.
  *
  * @param input - A {@link CSVTable}, or a plain readonly row list
  * @param options - Render options (see {@link resolveRenderOptions})
  * @returns The rendered CSV text
- * @throws {CSVError} `INVALID_OPTION` — see {@link resolveRenderOptions}
+ * @throws {CSVError} `INVALID_OPTION` - see {@link resolveRenderOptions}
  *
  * @example
  * ```ts
@@ -340,7 +340,7 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
 	const resolved = resolveRenderOptions(options)
 
 	// `Array.isArray` alone does not narrow a `readonly Row[]` union member
-	// (a TypeScript limitation with readonly arrays) — an explicit type
+	// (a TypeScript limitation with readonly arrays) - an explicit type
 	// predicate narrows reliably in both branches.
 	function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
 		return Array.isArray(source)
@@ -391,17 +391,17 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
 }
 
 /**
- * Render a {@link CSVTable} (or a plain row list) to tab-separated text — a
+ * Render a {@link CSVTable} (or a plain row list) to tab-separated text - a
  * thin `renderCSV` delegate forcing `delimiter: '\t'`.
  *
  * @remarks
- * An explicit `options.delimiter` passed by the caller is OVERRIDDEN — TSV
+ * An explicit `options.delimiter` passed by the caller is OVERRIDDEN - TSV
  * always uses tabs.
  *
  * @param input - A {@link CSVTable}, or a plain readonly row list
  * @param options - Render options (see {@link resolveRenderOptions}); `delimiter` is ignored
  * @returns The rendered TSV text
- * @throws {CSVError} `INVALID_OPTION` — see {@link resolveRenderOptions}
+ * @throws {CSVError} `INVALID_OPTION` - see {@link resolveRenderOptions}
  *
  * @example
  * ```ts
