@@ -242,6 +242,14 @@ export interface RenderOptions {
 }
 
 /**
+ * The fully-resolved render configuration every quoting and rendering helper
+ * takes - {@link RenderOptions} with every member defaulted except `columns`,
+ * which has no default and stays optional.
+ */
+export type ResolvedRenderOptions = Required<Omit<RenderOptions, 'columns'>> &
+	Pick<RenderOptions, 'columns'>
+
+/**
  * Options for {@link CSVInterface.export}.
  *
  * @remarks

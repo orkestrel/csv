@@ -1,4 +1,12 @@
-import type { Columns, CSVTable, ColumnType, ParseOptions, RenderOptions, Row } from './types.js'
+import type {
+	Columns,
+	CSVTable,
+	ColumnType,
+	ParseOptions,
+	RenderOptions,
+	ResolvedRenderOptions,
+	Row,
+} from './types.js'
 import {
 	BOM,
 	BOOLEAN_FALSE,
@@ -114,18 +122,13 @@ export function resolveParseOptions(options?: ParseOptions): Required<ParseOptio
  * resolveRenderOptions({ newline: '\n' }).newline // '\n'
  * ```
  */
-export function resolveRenderOptions(
-	options?: RenderOptions,
-): Required<Omit<RenderOptions, 'columns'>> & Pick<RenderOptions, 'columns'> {
+export function resolveRenderOptions(options?: RenderOptions): ResolvedRenderOptions {
 	const resolved = { ...DEFAULT_RENDER_OPTIONS, ...options }
 	assertValidSeparators(resolved.delimiter, resolved.quote)
 	if (resolved.newline !== '\n' && resolved.newline !== '\r\n')
 		throw new CSVError('INVALID_OPTION', "newline must be '\\n' or '\\r\\n'")
 	return resolved
 }
-
-/** The fully-resolved shape {@link resolveRenderOptions} returns. */
-export type ResolvedRenderOptions = ReturnType<typeof resolveRenderOptions>
 
 /**
  * Generate positional column names (`column1`, `column2`, …) for a header-less

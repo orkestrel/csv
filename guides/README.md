@@ -6,7 +6,7 @@ A dual-axis index into this repository's guides — by concept, and by directory
 
 | Concept | Spec                       | Source                    | Tests                                 |
 | ------- | -------------------------- | ------------------------- | ------------------------------------- |
-| Csv     | [`src/csv.md`](src/csv.md) | [`src/core`](../src/core) | [`tests/src/core`](../tests/src/core) |
+| CSV     | [`src/csv.md`](src/csv.md) | [`src/core`](../src/core) | [`tests/src/core`](../tests/src/core) |
 
 ## By directory
 
