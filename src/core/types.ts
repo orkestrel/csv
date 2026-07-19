@@ -43,7 +43,8 @@ export interface RawField {
  *
  * @remarks
  * Positions are relative to the input after byte-order-mark removal: `line`
- * and `column` are 1-based, `offset` is a 0-based character index. They let
+ * is 1-based, `column` is 1-based in UTF-16 code units, and `offset` is a
+ * 0-based UTF-16 code-unit index. They let
  * table-building errors (ragged rows, header faults) point back at the exact
  * record that produced them.
  */
@@ -54,7 +55,7 @@ export interface RawRecord {
 	readonly line: number
 	/** The 1-based column the record starts at. */
 	readonly column: number
-	/** The 0-based character offset the record starts at. */
+	/** The 0-based UTF-16 code-unit offset the record starts at. */
 	readonly offset: number
 }
 
@@ -122,7 +123,8 @@ export type Columns = Readonly<Record<string, ContractShape>>
  * (`false`, columns become `column1..columnN`); `comment` a leading-character
  * marking a line as a comment to skip (`false` disables comment handling);
  * `blanks` whether a blank line becomes an empty row (`'keep'`) or is dropped
- * (`'skip'`); `trim` whether leading/trailing whitespace is stripped from
+ * (`'skip'`) - a line of only whitespace is never blank, so `trim` does not
+ * change what `blanks` skips; `trim` whether leading/trailing whitespace is stripped from
  * every unquoted field (`false`); `ragged` how a record whose field count
  * differs from the header is handled — padded/truncated to fit with the
  * error collected (`'collect'`), silently padded/truncated (`'pad'`), or

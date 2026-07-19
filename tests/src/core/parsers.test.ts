@@ -323,4 +323,84 @@ describe('parseCSV', () => {
 			{ column1: '1', column2: '2', column3: '3' },
 		])
 	})
+
+	it('limit caps DATA records, not the header — the header is exempt from the cap', () => {
+		const { table, errors } = parseCSV('h1,h2\n1,2\n3,4', { limit: 2 })
+		expect(table.rows).toHaveLength(2)
+		expect(errors.filter((error) => error.code === 'LIMIT_EXCEEDED')).toHaveLength(0)
+	})
+
+	it('limit reports LIMIT_EXCEEDED at the first over-cap DATA record, header exempt', () => {
+		const { table, errors } = parseCSV('h\na\nb\nc', { limit: 2 })
+		expect(table.rows).toEqual([{ h: 'a' }, { h: 'b' }])
+		const limitErrors = errors.filter((error) => error.code === 'LIMIT_EXCEEDED')
+		expect(limitErrors).toHaveLength(1)
+		const error = limitErrors[0]
+		expect(error).toBeDefined()
+		if (error === undefined) return
+		expect(error.line).toBe(4)
+	})
+
+	it('limit with header: false caps records unchanged (no header to exempt)', () => {
+		const { table, errors } = parseCSV('a\nb\nc', { header: false, limit: 2 })
+		expect(table.rows).toHaveLength(2)
+		expect(errors.filter((error) => error.code === 'LIMIT_EXCEEDED')).toHaveLength(1)
+	})
+
+	it('an empty-name column runs through the same collision resolver, losing no data', () => {
+		const { table, errors } = parseCSV('column2,\nfirst,second')
+		expect(table.columns).toEqual(['column2', 'column2_2'])
+		expect(new Set(table.columns).size).toBe(table.columns.length)
+		expect(table.rows).toEqual([{ column2: 'first', column2_2: 'second' }])
+		expect(errors.some((error) => error.code === 'EMPTY_HEADER')).toBe(true)
+	})
+
+	it('strict:true fails fast on a tokenizer error — identical to the first error collected non-strict', () => {
+		const input = 'a,b\nc,"unterminated'
+		const nonStrict = parseCSV(input, { strict: false })
+		const first = nonStrict.errors[0]
+		expect(first).toBeDefined()
+		if (first === undefined) return
+		let caught: unknown
+		try {
+			parseCSV(input, { strict: true })
+		} catch (error) {
+			caught = error
+		}
+		const thrown = assertAndNarrow(isCSVError, caught)
+		expect(thrown.code).toBe(first.code)
+		expect(thrown.line).toBe(first.line)
+		expect(thrown.column).toBe(first.column)
+		expect(thrown.offset).toBe(first.offset)
+	})
+
+	it('strict:true fails fast on a table-building error (ragged row, clean tokenize) — identical to non-strict', () => {
+		const input = 'a,b,c\n1,2'
+		const nonStrict = parseCSV(input, { strict: false, ragged: 'collect' })
+		const first = nonStrict.errors[0]
+		expect(first).toBeDefined()
+		if (first === undefined) return
+		let caught: unknown
+		try {
+			parseCSV(input, { strict: true, ragged: 'collect' })
+		} catch (error) {
+			caught = error
+		}
+		const thrown = assertAndNarrow(isCSVError, caught)
+		expect(thrown.code).toBe(first.code)
+		expect(thrown.line).toBe(first.line)
+		expect(thrown.column).toBe(first.column)
+		expect(thrown.offset).toBe(first.offset)
+	})
+
+	it('caps collected errors at MAX_ERRORS while table-building degradation stays unaffected', () => {
+		const rows: string[] = []
+		for (let index = 0; index < MAX_ERRORS + 10; index += 1) rows.push('1,2')
+		const input = `a,b,c\n${rows.join('\n')}`
+		const { table, errors } = parseCSV(input, { ragged: 'collect' })
+		expect(errors).toHaveLength(MAX_ERRORS)
+		expect(errors.every((error) => error.code === 'RAGGED_ROW')).toBe(true)
+		expect(table.rows).toHaveLength(MAX_ERRORS + 10)
+		expect(table.rows.every((row) => row.a === '1' && row.b === '2' && row.c === undefined)).toBe(true)
+	})
 })

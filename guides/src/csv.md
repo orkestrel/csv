@@ -213,7 +213,8 @@ result's `errors` list, capped at `MAX_ERRORS` (further malformations past
 the cap are silently no longer recorded; scanning still continues). Each
 `CSVError` carries a machine-readable `code` (a `CSVErrorCode`) plus, for a
 parse-time malformation, the 1-based `line`/`column` and 0-based `offset`
-into the (post-BOM) source. Setting `strict: true` flips this to throw-on-
+into the (post-BOM) source, with `column` and `offset` measured in UTF-16
+code units. Setting `strict: true` flips this to throw-on-
 first-error: the first collected error throws immediately instead of being
 returned. An invalid OPTION (`INVALID_OPTION` — a malformed delimiter/quote
 pair, an empty `comment`, a negative `limit`, a bad `newline`) is always a

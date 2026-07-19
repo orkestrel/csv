@@ -208,6 +208,23 @@ describe('uniqueColumns', () => {
 	it('keeps incrementing past an engineered collision', () => {
 		expect(uniqueColumns(['a', 'a', 'a_2'])).toEqual(['a', 'a_2', 'a_2_2'])
 	})
+
+	it('runs a generated positional name through the same collision resolver as a literal name', () => {
+		expect(uniqueColumns(['column2', ''])).toEqual(['column2', 'column2_2'])
+		expect(uniqueColumns(['', 'column1'])).toEqual(['column1', 'column1_2'])
+	})
+
+	it('produces a strictly unique, same-length list for a nasty mixed case', () => {
+		const input = ['a', 'a', 'a_2', '', 'column4']
+		const result = uniqueColumns(input)
+		expect(result).toHaveLength(input.length)
+		expect(new Set(result).size).toBe(result.length)
+	})
+
+	it('is deterministic — the same input twice yields the same output', () => {
+		const input = ['a', 'a', 'a_2', '', 'column4']
+		expect(uniqueColumns(input)).toEqual(uniqueColumns(input))
+	})
 })
 
 describe('sanitizeField', () => {

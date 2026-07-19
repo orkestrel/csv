@@ -16,8 +16,9 @@ import { coerceCell, inferColumnType, positionalColumns, resolveParseOptions, st
  *
  * @remarks
  * A single leading UTF-8 byte-order-mark is stripped before scanning; every
- * reported `line` (1-based), `column` (1-based, in characters), and `offset`
- * (0-based) is relative to the text AFTER that removal. A CRLF pair counts as
+ * reported `line` (1-based), `column` (1-based, in UTF-16 code units), and
+ * `offset` (0-based, a UTF-16 code-unit index) is relative to the text AFTER
+ * that removal. A CRLF pair counts as
  * ONE line break; a bare LF or bare CR each count as one. A record separator
  * at end-of-input does not produce a trailing empty record, so a
  * trailing-newline input and a no-trailing-newline input yield identical
@@ -26,7 +27,8 @@ import { coerceCell, inferColumnType, positionalColumns, resolveParseOptions, st
  *
  * @param input - The raw CSV text (BOM optional)
  * @param options - Parse options (see {@link resolveParseOptions}); `header`,
- * `ragged`, and `infer` are ignored here — they apply only in {@link parseCSV}
+ * `ragged`, `infer`, and `strict` are ignored here — they apply only in
+ * {@link parseCSV}
  * @returns The raw records plus any errors collected while splitting
  * @throws {CSVError} `INVALID_OPTION` — see {@link resolveParseOptions}
  *
@@ -42,8 +44,11 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 	const errors: CSVError[] = []
 	const records: RawRecord[] = []
 
-	function pushError(error: CSVError): void {
-		if (errors.length < MAX_ERRORS) errors.push(error)
+	// Lazy-build the error: `build` is invoked only when under `MAX_ERRORS`, so
+	// a discarded-past-cap error never allocates its `CSVError` (or any data it
+	// closes over, e.g. a `dropped` field list).
+	function pushError(build: () => CSVError): void {
+		if (errors.length < MAX_ERRORS) errors.push(build())
 	}
 
 	let index = 0
@@ -102,7 +107,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 			const char = text.charAt(index)
 			if (char === resolved.delimiter || isBreakChar(char)) break
 			if (char === resolved.quote) {
-				pushError(new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', { line, column, offset: index }))
+				pushError(() => new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', { line, column, offset: index }))
 			}
 			value += char
 			advance()
@@ -124,11 +129,12 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 		while (true) {
 			if (index >= length) {
 				pushError(
-					new CSVError('UNTERMINATED_QUOTE', 'quoted field never closed', {
-						line: openLine,
-						column: openColumn,
-						offset: openOffset,
-					}),
+					() =>
+						new CSVError('UNTERMINATED_QUOTE', 'quoted field never closed', {
+							line: openLine,
+							column: openColumn,
+							offset: openOffset,
+						}),
 				)
 				return { value, quoted: true }
 			}
@@ -154,7 +160,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 				if (index >= length) return { value, quoted: true }
 				const after = text.charAt(index)
 				if (after === resolved.delimiter || isBreakChar(after)) return { value, quoted: true }
-				pushError(new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', { line, column, offset: index }))
+				pushError(() => new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', { line, column, offset: index }))
 				while (index < length && text.charAt(index) !== resolved.delimiter && !isBreakChar(text.charAt(index))) {
 					value += text.charAt(index)
 					advance()
@@ -212,11 +218,12 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 
 		if (resolved.limit > 0 && emitted >= resolved.limit) {
 			pushError(
-				new CSVError('LIMIT_EXCEEDED', 'record limit exceeded', {
-					line: recordLine,
-					column: recordColumn,
-					offset: recordOffset,
-				}),
+				() =>
+					new CSVError('LIMIT_EXCEEDED', 'record limit exceeded', {
+						line: recordLine,
+						column: recordColumn,
+						offset: recordOffset,
+					}),
 			)
 			stopped = true
 			break
@@ -253,10 +260,16 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
  * (`'collect'` pads/drops and records `RAGGED_ROW`; `'pad'` does the same
  * silently; `'error'` excludes the row and records `RAGGED_ROW`). When
  * `infer` is `true`, every column is re-typed (via {@link inferColumnType} /
- * {@link coerceCell}) after all rows are built. `strict: true` throws the
- * FIRST collected error instead of returning it; otherwise `parseCSV` never
- * throws on malformed data. Errors are returned in discovery order — never
- * sorted.
+ * {@link coerceCell}) after all rows are built. `strict: true` throws at the
+ * point the FIRST error is discovered — a tokenizer error immediately after
+ * {@link readRecords} returns (before any header/row-building/inference
+ * work), or a header/row-building error the instant it would otherwise be
+ * collected — instead of scanning to completion and throwing `errors[0]`;
+ * the thrown error is identical to the `errors[0]` a non-strict call would
+ * collect for the same input. Otherwise `parseCSV` never throws on malformed
+ * data, and errors are returned in discovery order — never sorted.
+ * `options.limit` caps the number of DATA records — the header record (when
+ * `header: true`) is exempt from the cap.
  *
  * @param input - The raw CSV text (BOM optional)
  * @param options - Parse options (see {@link resolveParseOptions})
@@ -271,11 +284,32 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
  */
 export function parseCSV(input: string, options?: ParseOptions): CSVParseResult {
 	const resolved = resolveParseOptions(options)
-	const { records, errors: tokenErrors } = readRecords(input, options)
+	// `limit` caps DATA records (see TSDoc above), but `readRecords` caps RAW
+	// records header-agnostically — with `header: true` the header would
+	// otherwise consume one slot from the cap. Bump the raw limit by one to
+	// exempt the header record; `header: false` passes `options` through
+	// unchanged since there is no header to exempt.
+	const readOptions = resolved.header && resolved.limit > 0 ? { ...options, limit: resolved.limit + 1 } : options
+	const { records, errors: tokenErrors } = readRecords(input, readOptions)
+
+	// Fail fast: under `strict`, throw the very first error in discovery
+	// order — a tokenizer error always precedes any table-building error — the
+	// instant it is known, before any header/row-building/inference work runs.
+	if (resolved.strict) {
+		const firstTokenError = tokenErrors[0]
+		if (firstTokenError !== undefined) throw firstTokenError
+	}
+
 	const errors: CSVError[] = [...tokenErrors]
 
-	function pushError(error: CSVError): void {
-		if (errors.length < MAX_ERRORS) errors.push(error)
+	// Lazy-build the error: under `strict` this throws `build()` the instant
+	// it is called (so the FIRST table-building error thrown is identical to
+	// today's collected `errors[0]`); otherwise `build` runs only when under
+	// `MAX_ERRORS`, so a discarded-past-cap error (and any data it closes
+	// over, e.g. a `dropped` field list) never allocates.
+	function pushError(build: () => CSVError): void {
+		if (resolved.strict) throw build()
+		if (errors.length < MAX_ERRORS) errors.push(build())
 	}
 
 	function resolveHeader(source: readonly RawRecord[]): {
@@ -294,12 +328,15 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 		const seen: string[] = []
 		rawNames.forEach((name, position) => {
 			if (name.trim() === '') {
-				pushError(new CSVError('EMPTY_HEADER', 'header name is empty', location, { index: position }))
+				pushError(() => new CSVError('EMPTY_HEADER', 'header name is empty', location, { index: position }))
 			} else if (seen.includes(name)) {
-				pushError(new CSVError('DUPLICATE_HEADER', 'header name repeats an earlier one', location, {
-					name,
-					index: position,
-				}))
+				pushError(
+					() =>
+						new CSVError('DUPLICATE_HEADER', 'header name repeats an earlier one', location, {
+							name,
+							index: position,
+						}),
+				)
 			}
 			seen.push(name)
 		})
@@ -317,11 +354,14 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 
 		if (actual < width) {
 			if (resolved.ragged !== 'pad') {
-				pushError(new CSVError('RAGGED_ROW', 'record has fewer fields than columns', location, {
-					expected: width,
-					actual,
-					index: position,
-				}))
+				pushError(
+					() =>
+						new CSVError('RAGGED_ROW', 'record has fewer fields than columns', location, {
+							expected: width,
+							actual,
+							index: position,
+						}),
+				)
 			}
 			if (resolved.ragged === 'error') return undefined
 			for (let column = 0; column < width; column += 1) {
@@ -334,14 +374,16 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 		}
 
 		if (actual > width) {
-			const dropped = fields.slice(width).map((field) => field.value)
 			if (resolved.ragged !== 'pad') {
-				pushError(new CSVError('RAGGED_ROW', 'record has more fields than columns', location, {
-					expected: width,
-					actual,
-					dropped,
-					index: position,
-				}))
+				pushError(
+					() =>
+						new CSVError('RAGGED_ROW', 'record has more fields than columns', location, {
+							expected: width,
+							actual,
+							dropped: fields.slice(width).map((field) => field.value),
+							index: position,
+						}),
+				)
 			}
 			if (resolved.ragged === 'error') return undefined
 			for (let column = 0; column < width; column += 1) {
@@ -391,11 +433,6 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 	})
 
 	if (resolved.infer) applyInference(columns, rows)
-
-	if (resolved.strict) {
-		const first = errors[0]
-		if (first !== undefined) throw first
-	}
 
 	return { table: { columns, rows }, errors }
 }

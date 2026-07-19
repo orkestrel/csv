@@ -227,22 +227,27 @@ export function positionalColumns(width: number): readonly string[] {
  */
 export function uniqueColumns(names: readonly string[]): readonly string[] {
 	const kept: string[] = []
-	for (const [index, name] of names.entries()) {
-		if (name.trim() === '') {
-			kept.push(`${POSITIONAL_COLUMN_PREFIX}${index + 1}`)
-			continue
-		}
-		if (!kept.includes(name)) {
-			kept.push(name)
-			continue
-		}
+	const seen = new Set<string>()
+
+	// Shared collision resolver — both a literal name and a generated
+	// positional name (from an empty/whitespace source name) run through this
+	// same suffix loop, so neither can collide with an already-kept name.
+	function resolveUnique(base: string): string {
+		if (!seen.has(base)) return base
 		let suffix = 2
-		let candidate = `${name}_${suffix}`
-		while (kept.includes(candidate)) {
+		let candidate = `${base}_${suffix}`
+		while (seen.has(candidate)) {
 			suffix += 1
-			candidate = `${name}_${suffix}`
+			candidate = `${base}_${suffix}`
 		}
-		kept.push(candidate)
+		return candidate
+	}
+
+	for (const [index, name] of names.entries()) {
+		const base = name.trim() === '' ? `${POSITIONAL_COLUMN_PREFIX}${index + 1}` : name
+		const unique = resolveUnique(base)
+		kept.push(unique)
+		seen.add(unique)
 	}
 	return kept
 }
@@ -344,13 +349,11 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
 	function resolveColumns(source: CSVTable | readonly Row[]): readonly string[] {
 		if (resolved.columns) return resolved.columns
 		if (!isRowList(source)) return source.columns
-		const seen: string[] = []
+		const seen = new Set<string>()
 		for (const row of source) {
-			for (const key of Object.keys(row)) {
-				if (!seen.includes(key)) seen.push(key)
-			}
+			for (const key of Object.keys(row)) seen.add(key)
 		}
-		return seen
+		return [...seen]
 	}
 
 	function serialize(value: unknown): string {
