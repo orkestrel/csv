@@ -1,16 +1,26 @@
 import { isCSVError } from '@src/core'
 import {
-	coerceCell,
+	deriveColumns,
+	deriveShapes,
+	escapeBackslashes,
+	escapeQuotes,
 	inferColumnType,
+	needsQuote,
 	positionalColumns,
-	quoteField,
+	quoteAlways,
+	quoteMinimal,
+	quoteNonnumeric,
 	renderCSV,
+	renderRecord,
 	renderTSV,
 	resolveParseOptions,
 	resolveRenderOptions,
 	sanitizeField,
+	selectQuotePolicy,
+	serializeCell,
 	stripBom,
 	uniqueColumns,
+	uniqueName,
 } from '@src/core'
 import { assertAndNarrow, buildInferenceTraps } from '../../setup'
 import { describe, expect, it } from 'vitest'
@@ -155,37 +165,6 @@ describe('inferColumnType', () => {
 	})
 })
 
-describe('coerceCell', () => {
-	it('leaves text unchanged', () => {
-		expect(coerceCell('hello', 'text')).toBe('hello')
-	})
-
-	it('leaves blob unchanged', () => {
-		expect(coerceCell('raw bytes', 'blob')).toBe('raw bytes')
-	})
-
-	it('returns undefined for an empty string with a non-text type', () => {
-		expect(coerceCell('', 'integer')).toBeUndefined()
-		expect(coerceCell('', 'boolean')).toBeUndefined()
-		expect(coerceCell('', 'json')).toBeUndefined()
-	})
-
-	it('coerces integer/real to Number', () => {
-		expect(coerceCell('42', 'integer')).toBe(42)
-		expect(coerceCell('3.14', 'real')).toBe(3.14)
-	})
-
-	it('coerces boolean strictly', () => {
-		expect(coerceCell('true', 'boolean')).toBe(true)
-		expect(coerceCell('false', 'boolean')).toBe(false)
-	})
-
-	it('parses json, falling back to the raw string on failure', () => {
-		expect(coerceCell('{"a":1}', 'json')).toEqual({ a: 1 })
-		expect(coerceCell('not json', 'json')).toBe('not json')
-	})
-})
-
 describe('positionalColumns', () => {
 	it('generates 1-based positional names', () => {
 		expect(positionalColumns(3)).toEqual(['column1', 'column2', 'column3'])
@@ -193,6 +172,20 @@ describe('positionalColumns', () => {
 
 	it('returns an empty list for width 0', () => {
 		expect(positionalColumns(0)).toEqual([])
+	})
+})
+
+describe('uniqueName', () => {
+	it('returns the name unchanged when not taken', () => {
+		expect(uniqueName('a', new Set())).toBe('a')
+	})
+
+	it('suffixes _2 on first collision', () => {
+		expect(uniqueName('a', new Set(['a']))).toBe('a_2')
+	})
+
+	it('keeps incrementing past an engineered collision', () => {
+		expect(uniqueName('a', new Set(['a', 'a_2']))).toBe('a_3')
 	})
 })
 
@@ -249,40 +242,162 @@ describe('sanitizeField', () => {
 	})
 })
 
-describe('quoteField', () => {
-	it('quotes when the field contains the delimiter, quote, CR, or LF (the floor)', () => {
+describe('needsQuote', () => {
+	it('is true for a field containing the delimiter, quote, CR, or LF (the floor)', () => {
+		const options = resolveRenderOptions()
+		expect(needsQuote('a,b', options)).toBe(true)
+		expect(needsQuote('a"b', options)).toBe(true)
+		expect(needsQuote('a\rb', options)).toBe(true)
+		expect(needsQuote('a\nb', options)).toBe(true)
+	})
+
+	it('is false for a plain field', () => {
+		expect(needsQuote('plain', resolveRenderOptions())).toBe(false)
+	})
+})
+
+describe('escapeQuotes', () => {
+	it('doubles every quote occurrence', () => {
+		expect(escapeQuotes('a"b"c', '"')).toBe('a""b""c')
+	})
+})
+
+describe('escapeBackslashes', () => {
+	it('prefixes each quote with a backslash and doubles literal backslashes', () => {
+		expect(escapeBackslashes('a"b', '"')).toBe('a\\"b')
+		expect(escapeBackslashes('a\\b', '"')).toBe('a\\\\b')
+	})
+})
+
+describe('quoteMinimal', () => {
+	it('quotes only what the floor requires', () => {
 		const options = resolveRenderOptions({ quotes: 'minimal' })
-		expect(quoteField('a,b', options)).toBe('"a,b"')
-		expect(quoteField('a"b', options)).toBe('"a""b"')
-		expect(quoteField('a\rb', options)).toBe('"a\rb"')
-		expect(quoteField('a\nb', options)).toBe('"a\nb"')
-	})
-
-	it('minimal only quotes what the floor requires', () => {
-		const options = resolveRenderOptions({ quotes: 'minimal' })
-		expect(quoteField('plain', options)).toBe('plain')
-	})
-
-	it('always quotes every field', () => {
-		const options = resolveRenderOptions({ quotes: 'always' })
-		expect(quoteField('plain', options)).toBe('"plain"')
-	})
-
-	it('nonnumeric quotes unless the field is a plain number', () => {
-		const options = resolveRenderOptions({ quotes: 'nonnumeric' })
-		expect(quoteField('42', options)).toBe('42')
-		expect(quoteField('text', options)).toBe('"text"')
+		expect(quoteMinimal('a,b', options)).toBe('"a,b"')
+		expect(quoteMinimal('plain', options)).toBe('plain')
 	})
 
 	it('escapes with doubled quote characters under double escape', () => {
-		const options = resolveRenderOptions({ quotes: 'always', escape: 'double' })
-		expect(quoteField('a"b', options)).toBe('"a""b"')
+		const options = resolveRenderOptions({ quotes: 'minimal', escape: 'double' })
+		expect(quoteMinimal('a"b', options)).toBe('"a""b"')
 	})
 
 	it('escapes with a backslash under backslash escape, including backslashes themselves', () => {
-		const options = resolveRenderOptions({ quotes: 'always', escape: 'backslash' })
-		expect(quoteField('a"b', options)).toBe('"a\\"b"')
-		expect(quoteField('a\\b', options)).toBe('"a\\\\b"')
+		const options = resolveRenderOptions({ quotes: 'minimal', escape: 'backslash' })
+		expect(quoteMinimal('a"b,c', options)).toBe('"a\\"b,c"')
+		expect(quoteMinimal('a\\b,c', options)).toBe('"a\\\\b,c"')
+	})
+})
+
+describe('quoteAlways', () => {
+	it('quotes every field unconditionally', () => {
+		const options = resolveRenderOptions({ quotes: 'always' })
+		expect(quoteAlways('plain', options)).toBe('"plain"')
+	})
+})
+
+describe('quoteNonnumeric', () => {
+	it('quotes unless the field is a plain number', () => {
+		const options = resolveRenderOptions({ quotes: 'nonnumeric' })
+		expect(quoteNonnumeric('42', options)).toBe('42')
+		expect(quoteNonnumeric('text', options)).toBe('"text"')
+	})
+})
+
+describe('selectQuotePolicy', () => {
+	it('selects quoteMinimal for "minimal"', () => {
+		expect(selectQuotePolicy('minimal')).toBe(quoteMinimal)
+	})
+
+	it('selects quoteAlways for "always"', () => {
+		expect(selectQuotePolicy('always')).toBe(quoteAlways)
+	})
+
+	it('selects quoteNonnumeric for "nonnumeric"', () => {
+		expect(selectQuotePolicy('nonnumeric')).toBe(quoteNonnumeric)
+	})
+})
+
+describe('deriveColumns', () => {
+	it('derives the first-seen key union across rows', () => {
+		expect(
+			deriveColumns([
+				{ a: 1, b: 2 },
+				{ b: 3, c: 4 },
+			]),
+		).toEqual(['a', 'b', 'c'])
+	})
+
+	it('returns an empty list for no rows', () => {
+		expect(deriveColumns([])).toEqual([])
+	})
+})
+
+describe('renderRecord', () => {
+	it('renders a row to a delimited line via the given quote policy', () => {
+		const options = resolveRenderOptions()
+		expect(renderRecord({ a: 1, b: 2 }, ['a', 'b'], options, quoteMinimal)).toBe('1,2')
+	})
+
+	it('applies sanitize before quoting', () => {
+		const options = resolveRenderOptions()
+		expect(renderRecord({ a: '=x' }, ['a'], options, quoteMinimal)).toBe("'=x")
+	})
+})
+
+describe('serializeCell', () => {
+	it('serializes null/undefined to blank', () => {
+		expect(serializeCell(null, '')).toBe('')
+		expect(serializeCell(undefined, 'NULL')).toBe('NULL')
+	})
+
+	it('leaves a string unchanged', () => {
+		expect(serializeCell('hi', '')).toBe('hi')
+	})
+
+	it('stringifies number/boolean/bigint', () => {
+		expect(serializeCell(42, '')).toBe('42')
+		expect(serializeCell(true, '')).toBe('true')
+		expect(serializeCell(10n, '')).toBe('10')
+	})
+
+	it('JSON-stringifies objects/arrays', () => {
+		expect(serializeCell({ a: 1 }, '')).toBe('{"a":1}')
+		expect(serializeCell([1, 2], '')).toBe('[1,2]')
+	})
+
+	it('degrades a circular value to blank', () => {
+		const circular: Record<string, unknown> = {}
+		circular.self = circular
+		expect(serializeCell(circular, '')).toBe('')
+	})
+})
+
+describe('deriveShapes', () => {
+	it('derives text for a column with no non-empty cells', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '' }, { a: undefined }] })
+		expect(columns.a).toBeDefined()
+	})
+
+	it('derives an inferred type for an all-string column', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '1' }, { a: '2' }] })
+		expect(columns.a).toBeDefined()
+	})
+
+	it('derives integer/real for an all-number column', () => {
+		const integer = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 2 }] })
+		expect(integer.a).toBeDefined()
+		const real = deriveShapes({ columns: ['a'], rows: [{ a: 1.5 }] })
+		expect(real.a).toBeDefined()
+	})
+
+	it('derives boolean for an all-boolean column', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: true }, { a: false }] })
+		expect(columns.a).toBeDefined()
+	})
+
+	it('derives json for a mixed column', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 'x' }] })
+		expect(columns.a).toBeDefined()
 	})
 })
 

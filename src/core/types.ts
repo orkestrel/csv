@@ -38,25 +38,87 @@ export interface RawField {
 }
 
 /**
+ * A cursor position in a parsed source text - relative to the input after
+ * byte-order-mark removal.
+ *
+ * @remarks
+ * `offset` is a 0-based UTF-16 code-unit index; `line` is 1-based; `column`
+ * is 1-based in UTF-16 code units.
+ */
+export interface Position {
+	/** The 0-based UTF-16 code-unit offset. */
+	readonly offset: number
+	/** The 1-based line. */
+	readonly line: number
+	/** The 1-based column, in UTF-16 code units. */
+	readonly column: number
+}
+
+/**
  * One raw parsed record - its ordered {@link RawField}s plus where the record
  * begins in the source, before header mapping.
  *
  * @remarks
- * Positions are relative to the input after byte-order-mark removal: `line`
- * is 1-based, `column` is 1-based in UTF-16 code units, and `offset` is a
- * 0-based UTF-16 code-unit index. They let
- * table-building errors (ragged rows, header faults) point back at the exact
- * record that produced them.
+ * `start` lets table-building errors (ragged rows, header faults) point back
+ * at the exact record that produced them.
  */
 export interface RawRecord {
 	/** The record's fields, in source order. */
 	readonly fields: readonly RawField[]
-	/** The 1-based line the record starts on. */
-	readonly line: number
-	/** The 1-based column the record starts at. */
-	readonly column: number
-	/** The 0-based UTF-16 code-unit offset the record starts at. */
-	readonly offset: number
+	/** The position the record starts at. */
+	readonly start: Position
+}
+
+/**
+ * One scanned field - a single {@link RawField} the tokenizer produced, the
+ * {@link Position} immediately after it, and any malformations found while
+ * scanning it.
+ */
+export interface FieldScan {
+	/** The scanned field. */
+	readonly field: RawField
+	/** The position immediately after the field. */
+	readonly next: Position
+	/** Malformations found while scanning this field. */
+	readonly errors: readonly CSVError[]
+}
+
+/**
+ * One scanned record - a single {@link RawRecord} the tokenizer produced, the
+ * {@link Position} immediately after it, and any malformations found while
+ * scanning it.
+ */
+export interface RecordScan {
+	/** The scanned record. */
+	readonly record: RawRecord
+	/** The position immediately after the record. */
+	readonly next: Position
+	/** Malformations found while scanning this record. */
+	readonly errors: readonly CSVError[]
+}
+
+/**
+ * The result of resolving a header record - the disambiguated column names,
+ * the remaining body records, and any header-related errors.
+ */
+export interface HeaderResult {
+	/** The disambiguated column names, in order. */
+	readonly columns: readonly string[]
+	/** The records that make up the table body (the header record excluded). */
+	readonly body: readonly RawRecord[]
+	/** Errors collected while resolving the header (`EMPTY_HEADER` / `DUPLICATE_HEADER`). */
+	readonly errors: readonly CSVError[]
+}
+
+/**
+ * The result of building one {@link RawRecord} into a typed {@link Row} -
+ * either the row, or the error that excluded it (see `ParseOptions.ragged`).
+ */
+export interface RowResult {
+	/** The built row, when the record was kept. */
+	readonly row?: Row
+	/** The error collected, when the record was ragged. */
+	readonly error?: CSVError
 }
 
 /**

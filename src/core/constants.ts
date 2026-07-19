@@ -62,6 +62,18 @@ export const SANITIZE_PREFIXES: ReadonlySet<string> = new Set([
 export const POSITIONAL_COLUMN_PREFIX = 'column'
 
 /**
+ * The protective prefix {@link sanitizeField} prepends to a field starting
+ * with a formula-triggering character (the OWASP CSV-injection guidance).
+ */
+export const SANITIZE_ESCAPE = "'"
+
+/**
+ * The separator between a disambiguated column name and its collision
+ * counter (`name` -> `name_2`, `name_3`, …) - see {@link uniqueName}.
+ */
+export const SUFFIX_SEPARATOR = '_'
+
+/**
  * Matches a canonical integer only - an optional leading `-`, no leading
  * zeros (except the bare digit `0`), digits only. No `+` sign, no
  * whitespace.

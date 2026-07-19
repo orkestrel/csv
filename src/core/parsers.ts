@@ -1,15 +1,20 @@
 import type {
+	ColumnType,
 	CSVParseResult,
+	FieldScan,
+	HeaderResult,
 	ParseOptions,
+	Position,
 	RawField,
 	RawRecord,
 	RecordsResult,
+	RecordScan,
 	Row,
+	RowResult,
 } from './types.js'
-import { MAX_ERRORS } from './constants.js'
+import { BOOLEAN_FALSE, BOOLEAN_TRUE, INTEGER_PATTERN, MAX_ERRORS, REAL_PATTERN } from './constants.js'
 import { CSVError } from './errors.js'
 import {
-	coerceCell,
 	inferColumnType,
 	positionalColumns,
 	resolveParseOptions,
@@ -17,27 +22,305 @@ import {
 	uniqueColumns,
 } from './helpers.js'
 
-// The CSV tokenizer + table-builder spine (AGENTS §5 / §14). `readRecords` is
-// a hand-written, single-pass character scanner - no regex, linear time.
-// `parseCSV` builds on it to assemble the typed `CSVTable`. Every internal
-// step is a nested inner function (the markdown `renderCSV`-style pattern) so
-// the only exported surface for this engine is the two functions themselves.
+// The CSV tokenizer + table-builder spine (AGENTS §5 / §14). Every step is a
+// flat, exported leaf threading a `Position` through the source text - no
+// nested function declarations, no recursion (CSV records never nest).
+// `readRecords` / `parseCSV` are the orchestration spines that compose the
+// leaves in sequence.
+
+/**
+ * Advance a {@link Position} by `count` NON-line-break characters.
+ *
+ * @param position - The starting position
+ * @param count - The number of code units to advance (default `1`)
+ * @returns The advanced position (`line` unchanged, `column`/`offset` shifted by `count`)
+ *
+ * @example
+ * ```ts
+ * advancePosition({ offset: 0, line: 1, column: 1 }) // { offset: 1, line: 1, column: 2 }
+ * ```
+ */
+export function advancePosition(position: Position, count = 1): Position {
+	return { offset: position.offset + count, line: position.line, column: position.column + count }
+}
+
+/**
+ * Whether `char` starts a record separator (CR or LF).
+ *
+ * @param char - A single character
+ * @returns `true` for `'\r'` or `'\n'`
+ */
+export function isBreakChar(char: string): boolean {
+	return char === '\r' || char === '\n'
+}
+
+/**
+ * Consume exactly one line break (CRLF, bare LF, or bare CR) at `position` -
+ * a CRLF pair counts as ONE break.
+ *
+ * @param source - The source text
+ * @param position - The position to test
+ * @returns The position immediately after the break (next line, column `1`);
+ * `undefined` when `position` is not at a break
+ *
+ * @example
+ * ```ts
+ * scanBreak('a\r\nb', { offset: 1, line: 1, column: 2 }) // { offset: 3, line: 2, column: 1 }
+ * ```
+ */
+export function scanBreak(source: string, position: Position): Position | undefined {
+	const char = source.charAt(position.offset)
+	if (char === '\r') {
+		const width = source.charAt(position.offset + 1) === '\n' ? 2 : 1
+		return { offset: position.offset + width, line: position.line + 1, column: 1 }
+	}
+	if (char === '\n') return { offset: position.offset + 1, line: position.line + 1, column: 1 }
+	return undefined
+}
+
+/**
+ * Consume a comment line at `position`, when `options.comment` names one
+ * starting there - through the end of that line INCLUDING its break (or
+ * end-of-input).
+ *
+ * @param source - The source text
+ * @param position - The position to test
+ * @param options - The resolved parse options
+ * @returns The position after the whole comment line; `undefined` when
+ * `options.comment` is `false` or the text at `position` does not start with it
+ *
+ * @example
+ * ```ts
+ * scanComment('#hi\na', { offset: 0, line: 1, column: 1 }, resolveParseOptions({ comment: '#' }))
+ * // { offset: 4, line: 2, column: 1 }
+ * ```
+ */
+export function scanComment(
+	source: string,
+	position: Position,
+	options: Required<ParseOptions>,
+): Position | undefined {
+	if (options.comment === false) return undefined
+	if (!source.startsWith(options.comment, position.offset)) return undefined
+	let cursor = position
+	while (cursor.offset < source.length) {
+		const brk = scanBreak(source, cursor)
+		if (brk !== undefined) return brk
+		cursor = advancePosition(cursor)
+	}
+	return cursor
+}
+
+/**
+ * Scan one unquoted field starting at `position` - content runs until the
+ * delimiter, a line break, or end-of-input.
+ *
+ * @remarks
+ * A quote character appearing mid-field yields a `BAD_QUOTE` error (at that
+ * character's position), kept literal in the value. `options.trim` strips
+ * leading/trailing spaces and tabs (never full whitespace) from the result.
+ *
+ * @param source - The source text
+ * @param position - The position to start scanning at
+ * @param options - The resolved parse options
+ * @returns The scanned field, the position immediately after it, and any errors found
+ *
+ * @example
+ * ```ts
+ * scanUnquoted('ab,c', { offset: 0, line: 1, column: 1 }, resolveParseOptions())
+ * // { field: { value: 'ab', quoted: false }, next: {...}, errors: [] }
+ * ```
+ */
+export function scanUnquoted(
+	source: string,
+	position: Position,
+	options: Required<ParseOptions>,
+): FieldScan {
+	let cursor = position
+	let value = ''
+	const errors: CSVError[] = []
+	while (cursor.offset < source.length) {
+		const char = source.charAt(cursor.offset)
+		if (char === options.delimiter || isBreakChar(char)) break
+		if (char === options.quote)
+			errors.push(
+				new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', cursor),
+			)
+		value += char
+		cursor = advancePosition(cursor)
+	}
+	const trimmed = options.trim ? value.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '') : value
+	return { field: { value: trimmed, quoted: false }, next: cursor, errors }
+}
+
+/**
+ * Scan one quoted field starting at `position` - `position` must be AT the
+ * opening quote character.
+ *
+ * @remarks
+ * Honors `options.escape`: `'double'` treats a doubled quote (`""`) as one
+ * literal quote; `'backslash'` treats a backslash before the quote or another
+ * backslash as an escape (a doubled quote is NOT an escape in this mode).
+ * End-of-input before the closing quote yields `UNTERMINATED_QUOTE`
+ * positioned at the OPENING quote, the field taking everything to
+ * end-of-input. Text after the closing quote other than the delimiter, a
+ * break, or end-of-input yields `BAD_QUOTE` at the offending character, with
+ * the remainder up to the next delimiter/break appended literally.
+ *
+ * @param source - The source text
+ * @param position - The position of the opening quote
+ * @param options - The resolved parse options
+ * @returns The scanned field, the position immediately after it, and any errors found
+ *
+ * @example
+ * ```ts
+ * scanQuoted('"ab"', { offset: 0, line: 1, column: 1 }, resolveParseOptions())
+ * // { field: { value: 'ab', quoted: true }, next: {...}, errors: [] }
+ * ```
+ */
+export function scanQuoted(
+	source: string,
+	position: Position,
+	options: Required<ParseOptions>,
+): FieldScan {
+	const open = position
+	let cursor = advancePosition(position) // consume the opening quote
+	let value = ''
+	while (true) {
+		if (cursor.offset >= source.length) {
+			const error = new CSVError('UNTERMINATED_QUOTE', 'quoted field never closed', open)
+			return { field: { value, quoted: true }, next: cursor, errors: [error] }
+		}
+		const char = source.charAt(cursor.offset)
+
+		if (options.escape === 'backslash' && char === '\\') {
+			const after = source.charAt(cursor.offset + 1)
+			if (after === options.quote || after === '\\') {
+				value += after
+				cursor = advancePosition(cursor, 2)
+				continue
+			}
+			value += char
+			cursor = advancePosition(cursor)
+			continue
+		}
+
+		if (char === options.quote) {
+			if (options.escape === 'double' && source.charAt(cursor.offset + 1) === options.quote) {
+				value += options.quote
+				cursor = advancePosition(cursor, 2)
+				continue
+			}
+			cursor = advancePosition(cursor) // consume the closing quote
+			if (cursor.offset >= source.length) return { field: { value, quoted: true }, next: cursor, errors: [] }
+			const after = source.charAt(cursor.offset)
+			if (after === options.delimiter || isBreakChar(after))
+				return { field: { value, quoted: true }, next: cursor, errors: [] }
+			const error = new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', cursor)
+			let tail = ''
+			while (
+				cursor.offset < source.length &&
+				source.charAt(cursor.offset) !== options.delimiter &&
+				!isBreakChar(source.charAt(cursor.offset))
+			) {
+				tail += source.charAt(cursor.offset)
+				cursor = advancePosition(cursor)
+			}
+			return { field: { value: value + tail, quoted: true }, next: cursor, errors: [error] }
+		}
+
+		if (isBreakChar(char)) {
+			if (char === '\r' && source.charAt(cursor.offset + 1) === '\n') {
+				value += '\r\n'
+				cursor = { offset: cursor.offset + 2, line: cursor.line + 1, column: 1 }
+			} else {
+				value += char
+				cursor = { offset: cursor.offset + 1, line: cursor.line + 1, column: 1 }
+			}
+			continue
+		}
+
+		value += char
+		cursor = advancePosition(cursor)
+	}
+}
+
+/**
+ * Scan one field at `position` - dispatches to {@link scanQuoted} when the
+ * character there is `options.quote`, else {@link scanUnquoted}.
+ *
+ * @param source - The source text
+ * @param position - The position to start scanning at
+ * @param options - The resolved parse options
+ * @returns The scanned field, the position immediately after it, and any errors found
+ */
+export function scanField(
+	source: string,
+	position: Position,
+	options: Required<ParseOptions>,
+): FieldScan {
+	return source.charAt(position.offset) === options.quote
+		? scanQuoted(source, position, options)
+		: scanUnquoted(source, position, options)
+}
+
+/**
+ * Scan one full record at `position` - fields separated by
+ * `options.delimiter`, ending at a break (consumed via {@link scanBreak}) or
+ * end-of-input.
+ *
+ * @param source - The source text
+ * @param position - The position the record starts at
+ * @param options - The resolved parse options
+ * @returns The scanned record (`record.start` is `position`), the position
+ * immediately after it, and any errors found across its fields
+ *
+ * @example
+ * ```ts
+ * scanRecord('a,b\nc', { offset: 0, line: 1, column: 1 }, resolveParseOptions())
+ * ```
+ */
+export function scanRecord(
+	source: string,
+	position: Position,
+	options: Required<ParseOptions>,
+): RecordScan {
+	const fields: RawField[] = []
+	const errors: CSVError[] = []
+	let cursor = position
+	while (true) {
+		const scan = scanField(source, cursor, options)
+		fields.push(scan.field)
+		errors.push(...scan.errors)
+		cursor = scan.next
+		if (cursor.offset >= source.length) break
+		if (source.charAt(cursor.offset) === options.delimiter) {
+			cursor = advancePosition(cursor)
+			continue
+		}
+		const brk = scanBreak(source, cursor)
+		if (brk !== undefined) {
+			cursor = brk
+			break
+		}
+		break
+	}
+	return { record: { fields, start: position }, next: cursor, errors }
+}
 
 /**
  * Splits `input` into raw, un-mapped {@link RawRecord}s - the tokenizer phase
- * beneath {@link parseCSV}. A hand-written, linear-time character scanner: no
- * regex, one pass over the text.
+ * beneath {@link parseCSV}.
  *
  * @remarks
  * A single leading UTF-8 byte-order-mark is stripped before scanning; every
- * reported `line` (1-based), `column` (1-based, in UTF-16 code units), and
- * `offset` (0-based, a UTF-16 code-unit index) is relative to the text AFTER
- * that removal. A CRLF pair counts as
- * ONE line break; a bare LF or bare CR each count as one. A record separator
- * at end-of-input does not produce a trailing empty record, so a
- * trailing-newline input and a no-trailing-newline input yield identical
- * records. Once {@link MAX_ERRORS} errors have been collected, further
- * malformations are silently no longer recorded (scanning still continues).
+ * reported {@link Position} is relative to the text AFTER that removal. A
+ * record separator at end-of-input does not produce a trailing empty
+ * record, so a trailing-newline input and a no-trailing-newline input yield
+ * identical records. Once {@link MAX_ERRORS} errors have been collected,
+ * further malformations are silently no longer recorded - each leaf still
+ * CONSTRUCTS its `CSVError` (the cap bounds the collected list, not leaf
+ * allocation).
  *
  * @param input - The raw CSV text (BOM optional)
  * @param options - Parse options (see {@link resolveParseOptions}); `header`,
@@ -54,224 +337,41 @@ import {
 export function readRecords(input: string, options?: ParseOptions): RecordsResult {
 	const resolved = resolveParseOptions(options)
 	const text = stripBom(input)
-	const length = text.length
 	const errors: CSVError[] = []
 	const records: RawRecord[] = []
 
-	// Lazy-build the error: `build` is invoked only when under `MAX_ERRORS`, so
-	// a discarded-past-cap error never allocates its `CSVError` (or any data it
-	// closes over, e.g. a `dropped` field list).
-	function pushError(build: () => CSVError): void {
-		if (errors.length < MAX_ERRORS) errors.push(build())
-	}
-
-	let index = 0
-	let line = 1
-	let column = 1
-
-	// Advances the cursor over `count` NON-line-break characters.
-	function advance(count = 1): void {
-		index += count
-		column += count
-	}
-
-	// Returns whether `char` starts a record separator (CR or LF).
-	function isBreakChar(char: string): boolean {
-		return char === '\r' || char === '\n'
-	}
-
-	// Consumes ONE record separator at the cursor (CRLF as a pair, else a
-	// single CR or LF) and advances `line`/`column`. Returns `false` (and
-	// consumes nothing) when the cursor is not at a separator.
-	function consumeBreak(): boolean {
-		if (index >= length) return false
-		const char = text.charAt(index)
-		if (char === '\r') {
-			index += text.charAt(index + 1) === '\n' ? 2 : 1
-			line += 1
-			column = 1
-			return true
-		}
-		if (char === '\n') {
-			index += 1
-			line += 1
-			column = 1
-			return true
-		}
-		return false
-	}
-
-	// Strips leading/trailing spaces and tabs (never full-whitespace) - the
-	// `trim` option applies to unquoted values only.
-	function trimSpacesTabs(value: string): string {
-		let start = 0
-		let end = value.length
-		while (start < end && (value.charAt(start) === ' ' || value.charAt(start) === '\t')) start += 1
-		while (end > start && (value.charAt(end - 1) === ' ' || value.charAt(end - 1) === '\t'))
-			end -= 1
-		return value.slice(start, end)
-	}
-
-	// Scans one unquoted field - content runs until the delimiter, a record
-	// separator, or end-of-input. A quote char appearing mid-field (never at
-	// the start, which routes to `parseQuotedField` instead) is BAD_QUOTE'd
-	// and kept as a literal character.
-	function parseUnquotedField(): RawField {
-		let value = ''
-		while (index < length) {
-			const char = text.charAt(index)
-			if (char === resolved.delimiter || isBreakChar(char)) break
-			if (char === resolved.quote) {
-				pushError(
-					() =>
-						new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', {
-							line,
-							column,
-							offset: index,
-						}),
-				)
-			}
-			value += char
-			advance()
-		}
-		return { value, quoted: false }
-	}
-
-	// Scans one quoted field, opened because the quote char was the first
-	// character of the field. Embedded record separators are content,
-	// preserved verbatim. Handles both escape styles, an illegal char after
-	// the closing quote (BAD_QUOTE, degrade-to-EOF-of-field), and an
-	// end-of-input before the closing quote (UNTERMINATED_QUOTE).
-	function parseQuotedField(): RawField {
-		const openLine = line
-		const openColumn = column
-		const openOffset = index
-		advance() // consume the opening quote
-		let value = ''
-		while (true) {
-			if (index >= length) {
-				pushError(
-					() =>
-						new CSVError('UNTERMINATED_QUOTE', 'quoted field never closed', {
-							line: openLine,
-							column: openColumn,
-							offset: openOffset,
-						}),
-				)
-				return { value, quoted: true }
-			}
-			const char = text.charAt(index)
-			if (resolved.escape === 'backslash' && char === '\\') {
-				const next = text.charAt(index + 1)
-				if (next === resolved.quote || next === '\\') {
-					value += next
-					advance(2)
-					continue
-				}
-				value += char
-				advance()
-				continue
-			}
-			if (char === resolved.quote) {
-				if (resolved.escape === 'double' && text.charAt(index + 1) === resolved.quote) {
-					value += resolved.quote
-					advance(2)
-					continue
-				}
-				advance() // consume the closing quote
-				if (index >= length) return { value, quoted: true }
-				const after = text.charAt(index)
-				if (after === resolved.delimiter || isBreakChar(after)) return { value, quoted: true }
-				pushError(
-					() =>
-						new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', {
-							line,
-							column,
-							offset: index,
-						}),
-				)
-				while (
-					index < length &&
-					text.charAt(index) !== resolved.delimiter &&
-					!isBreakChar(text.charAt(index))
-				) {
-					value += text.charAt(index)
-					advance()
-				}
-				return { value, quoted: true }
-			}
-			if (isBreakChar(char)) {
-				if (char === '\r' && text.charAt(index + 1) === '\n') {
-					value += '\r\n'
-					index += 2
-				} else {
-					value += char
-					index += 1
-				}
-				line += 1
-				column = 1
-				continue
-			}
-			value += char
-			advance()
-		}
-	}
-
-	function parseField(): RawField {
-		return text.charAt(index) === resolved.quote ? parseQuotedField() : parseUnquotedField()
-	}
-
+	let position: Position = { offset: 0, line: 1, column: 1 }
 	let emitted = 0
 	let stopped = false
-	while (index < length && !stopped) {
-		const recordLine = line
-		const recordColumn = column
-		const recordOffset = index
 
-		if (resolved.comment !== false && text.startsWith(resolved.comment, index)) {
-			while (index < length && !consumeBreak()) advance()
+	while (position.offset < text.length && !stopped) {
+		const recordStart = position
+
+		const afterComment = scanComment(text, position, resolved)
+		if (afterComment !== undefined) {
+			position = afterComment
 			continue
 		}
 
-		const rawFields: RawField[] = []
-		while (true) {
-			rawFields.push(parseField())
-			if (index >= length) break
-			if (text.charAt(index) === resolved.delimiter) {
-				advance()
-				continue
-			}
-			if (consumeBreak()) break
-			break
+		const scan = scanRecord(text, position, resolved)
+		for (const error of scan.errors) {
+			if (errors.length < MAX_ERRORS) errors.push(error)
 		}
+		position = scan.next
 
-		const first = rawFields[0]
+		const first = scan.record.fields[0]
 		const isBlank =
-			rawFields.length === 1 && first !== undefined && !first.quoted && first.value === ''
+			scan.record.fields.length === 1 && first !== undefined && !first.quoted && first.value === ''
 		if (isBlank && resolved.blanks === 'skip') continue
 
 		if (resolved.limit > 0 && emitted >= resolved.limit) {
-			pushError(
-				() =>
-					new CSVError('LIMIT_EXCEEDED', 'record limit exceeded', {
-						line: recordLine,
-						column: recordColumn,
-						offset: recordOffset,
-					}),
-			)
+			if (errors.length < MAX_ERRORS)
+				errors.push(new CSVError('LIMIT_EXCEEDED', 'record limit exceeded', recordStart))
 			stopped = true
 			break
 		}
 
-		records.push({
-			fields: rawFields.map((field) => ({
-				value: resolved.trim && !field.quoted ? trimSpacesTabs(field.value) : field.value,
-				quoted: field.quoted,
-			})),
-			line: recordLine,
-			column: recordColumn,
-			offset: recordOffset,
-		})
+		records.push(scan.record)
 		emitted += 1
 	}
 
@@ -279,31 +379,208 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 }
 
 /**
- * Parses `input` into a typed {@link CSVParseResult} - header mapping,
- * ragged-row handling, and optional type inference on top of
- * {@link readRecords}.
+ * Resolve a table's header from its raw records - disambiguates the first
+ * record's names when `options.header` is `true`, or generates positional
+ * names sized to the widest record otherwise.
  *
  * @remarks
- * Every row is built with a null prototype (`Object.create(null)`), so a
+ * `header: true` disambiguates via {@link uniqueColumns}, collecting
+ * `EMPTY_HEADER` for a blank raw name and `DUPLICATE_HEADER` for a repeat of
+ * an earlier raw name, both positioned at the header record's
+ * {@link Position}. `header: false` uses {@link positionalColumns} sized to
+ * the widest record, and every record is body.
+ *
+ * @param records - The raw records (from {@link readRecords})
+ * @param options - The resolved parse options
+ * @returns The resolved columns, the body records (header excluded), and any
+ * header errors
+ *
+ * @example
+ * ```ts
+ * deriveHeader(readRecords('a,a\n1,2').records, resolveParseOptions())
+ * // { columns: ['a', 'a_2'], body: [...], errors: [...] }
+ * ```
+ */
+export function deriveHeader(
+	records: readonly RawRecord[],
+	options: Required<ParseOptions>,
+): HeaderResult {
+	if (!options.header) {
+		const width = records.reduce((max, record) => Math.max(max, record.fields.length), 0)
+		return { columns: positionalColumns(width), body: records, errors: [] }
+	}
+
+	const first = records[0]
+	if (first === undefined) return { columns: [], body: [], errors: [] }
+
+	const rawNames = first.fields.map((field) => field.value)
+	const columns = uniqueColumns(rawNames)
+	const errors: CSVError[] = []
+	const seen: string[] = []
+	rawNames.forEach((name, index) => {
+		if (name.trim() === '') {
+			errors.push(new CSVError('EMPTY_HEADER', 'header name is empty', first.start, { index }))
+		} else if (seen.includes(name)) {
+			errors.push(
+				new CSVError('DUPLICATE_HEADER', 'header name repeats an earlier one', first.start, {
+					name,
+					index,
+				}),
+			)
+		}
+		seen.push(name)
+	})
+
+	return { columns, body: records.slice(1), errors }
+}
+
+/**
+ * Build one {@link RawRecord} into one null-prototype {@link Row}, padding or
+ * truncating to `columns.length` per `options.ragged`.
+ *
+ * @remarks
+ * `'pad'` pads/truncates silently (no error). `'collect'` pads/truncates AND
+ * collects a `RAGGED_ROW` error (with `dropped` values in its context for an
+ * over-wide record), positioned at `record.start`. `'error'` omits the row
+ * entirely (only the error is returned).
+ *
+ * @param record - The raw record to build
+ * @param columns - The resolved column order
+ * @param options - The resolved parse options
+ * @returns The built row and/or the ragged-row error
+ *
+ * @example
+ * ```ts
+ * buildRow(readRecords('1,2').records[0], ['a', 'b', 'c'], resolveParseOptions())
+ * // { row: { a: '1', b: '2', c: undefined }, error: CSVError('RAGGED_ROW', ...) }
+ * ```
+ */
+export function buildRow(
+	record: RawRecord,
+	columns: readonly string[],
+	options: Required<ParseOptions>,
+): RowResult {
+	const width = columns.length
+	const fields = record.fields
+	const actual = fields.length
+	const row: Row = Object.create(null)
+	for (let position = 0; position < width; position += 1) {
+		const columnName = columns[position]
+		if (columnName === undefined) continue
+		const field = fields[position]
+		row[columnName] = field === undefined ? undefined : field.value
+	}
+
+	if (actual === width) return { row }
+
+	if (actual < width) {
+		if (options.ragged === 'pad') return { row }
+		const error = new CSVError('RAGGED_ROW', 'record has fewer fields than columns', record.start, {
+			expected: width,
+			actual,
+		})
+		return options.ragged === 'error' ? { error } : { row, error }
+	}
+
+	if (options.ragged === 'pad') return { row }
+	const dropped = fields.slice(width).map((field) => field.value)
+	const error = new CSVError('RAGGED_ROW', 'record has more fields than columns', record.start, {
+		expected: width,
+		actual,
+		dropped,
+	})
+	return options.ragged === 'error' ? { error } : { row, error }
+}
+
+/**
+ * Coerce one string cell to `type`'s typed representation - the exhaustive
+ * per-cell dispatch {@link inferRows} applies once a column's type is known.
+ *
+ * @param value - The raw cell text
+ * @param type - The column's inferred {@link ColumnType} (never `'json'` /
+ * `'blob'` - those are never inferred, and pass through unchanged like
+ * `'text'`)
+ * @returns The typed value, via {@link parseInteger} / {@link parseReal} /
+ * {@link parseBoolean}; `value` unchanged for `'text'` (or the unreachable
+ * `'json'` / `'blob'`)
+ */
+export function coerceInferred(value: string, type: ColumnType): unknown {
+	switch (type) {
+		case 'integer':
+			return parseInteger(value)
+		case 'real':
+			return parseReal(value)
+		case 'boolean':
+			return parseBoolean(value)
+		case 'text':
+		case 'json':
+		case 'blob':
+			return value
+	}
+}
+
+/**
+ * Apply whole-column type inference to a built row set - per column, infers
+ * its {@link ColumnType} from its string cells, then coerces every cell of
+ * that type via {@link coerceInferred}.
+ *
+ * @remarks
+ * An empty-string cell becomes `undefined` for any non-`'text'` column
+ * (there is nothing to coerce). Copy-on-write - `rows` is never mutated;
+ * a fresh row set is returned.
+ *
+ * @param rows - The built rows (from {@link buildRow})
+ * @param columns - The resolved column order
+ * @returns A new row set with every column's cells coerced to its inferred type
+ *
+ * @example
+ * ```ts
+ * inferRows([{ a: '1' }, { a: '2' }], ['a']) // [{ a: 1 }, { a: 2 }]
+ * ```
+ */
+export function inferRows(rows: readonly Row[], columns: readonly string[]): readonly Row[] {
+	const types = columns.map((column) => {
+		const values: string[] = []
+		for (const row of rows) {
+			const value = row[column]
+			if (typeof value === 'string') values.push(value)
+		}
+		return inferColumnType(values)
+	})
+
+	return rows.map((row) => {
+		const next: Row = Object.create(null)
+		for (const key of Object.keys(row)) next[key] = row[key]
+		columns.forEach((column, position) => {
+			const value = row[column]
+			const type = types[position]
+			if (typeof value !== 'string' || type === undefined) return
+			next[column] = value === '' && type !== 'text' ? undefined : coerceInferred(value, type)
+		})
+		return next
+	})
+}
+
+/**
+ * Parses `input` into a typed {@link CSVParseResult} - header mapping,
+ * ragged-row handling, and optional type inference on top of
+ * {@link readRecords}, {@link deriveHeader}, {@link buildRow}, and
+ * {@link inferRows}.
+ *
+ * @remarks
+ * Every row is built with a null prototype (see {@link buildRow}), so a
  * hostile header name (`__proto__`, `constructor`, `prototype`) becomes a
- * plain own property that can never reach `Object.prototype`. `header: true`
- * disambiguates the first record's names via {@link uniqueColumns}, collecting
- * `EMPTY_HEADER` for a blank name and `DUPLICATE_HEADER` for a repeat of an
- * earlier raw name. `header: false` uses {@link positionalColumns} sized to
- * the widest record. A ragged data record is handled per `options.ragged`
- * (`'collect'` pads/drops and records `RAGGED_ROW`; `'pad'` does the same
- * silently; `'error'` excludes the row and records `RAGGED_ROW`). When
- * `infer` is `true`, every column is re-typed (via {@link inferColumnType} /
- * {@link coerceCell}) after all rows are built. `strict: true` throws at the
- * point the FIRST error is discovered - a tokenizer error immediately after
- * {@link readRecords} returns (before any header/row-building/inference
- * work), or a header/row-building error the instant it would otherwise be
- * collected - instead of scanning to completion and throwing `errors[0]`;
- * the thrown error is identical to the `errors[0]` a non-strict call would
- * collect for the same input. Otherwise `parseCSV` never throws on malformed
- * data, and errors are returned in discovery order - never sorted.
+ * plain own property that can never reach `Object.prototype`.
  * `options.limit` caps the number of DATA records - the header record (when
- * `header: true`) is exempt from the cap.
+ * `header: true`) is exempt from the cap. `strict: true` throws at the point
+ * the FIRST error is discovered - a tokenizer error immediately after
+ * {@link readRecords} returns, a header error immediately after
+ * {@link deriveHeader} returns, or a row-building error the instant it is
+ * found while iterating the body in record order - instead of scanning to
+ * completion and throwing `errors[0]`; the thrown error is identical to the
+ * `errors[0]` a non-strict call would collect for the same input. Otherwise
+ * `parseCSV` never throws on malformed data, and errors are returned in
+ * discovery order - never sorted.
  *
  * @param input - The raw CSV text (BOM optional)
  * @param options - Parse options (see {@link resolveParseOptions})
@@ -327,9 +604,6 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 		resolved.header && resolved.limit > 0 ? { ...options, limit: resolved.limit + 1 } : options
 	const { records, errors: tokenErrors } = readRecords(input, readOptions)
 
-	// Fail fast: under `strict`, throw the very first error in discovery
-	// order - a tokenizer error always precedes any table-building error - the
-	// instant it is known, before any header/row-building/inference work runs.
 	if (resolved.strict) {
 		const firstTokenError = tokenErrors[0]
 		if (firstTokenError !== undefined) throw firstTokenError
@@ -337,143 +611,111 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 
 	const errors: CSVError[] = [...tokenErrors]
 
-	// Lazy-build the error: under `strict` this throws `build()` the instant
-	// it is called (so the FIRST table-building error thrown is identical to
-	// today's collected `errors[0]`); otherwise `build` runs only when under
-	// `MAX_ERRORS`, so a discarded-past-cap error (and any data it closes
-	// over, e.g. a `dropped` field list) never allocates.
-	function pushError(build: () => CSVError): void {
-		if (resolved.strict) throw build()
-		if (errors.length < MAX_ERRORS) errors.push(build())
+	const header = deriveHeader(records, resolved)
+	if (resolved.strict) {
+		const firstHeaderError = header.errors[0]
+		if (firstHeaderError !== undefined) throw firstHeaderError
+	}
+	for (const error of header.errors) {
+		if (errors.length < MAX_ERRORS) errors.push(error)
 	}
 
-	function resolveHeader(source: readonly RawRecord[]): {
-		readonly columns: readonly string[]
-		readonly dataRecords: readonly RawRecord[]
-	} {
-		if (!resolved.header) {
-			const width = source.reduce((max, record) => Math.max(max, record.fields.length), 0)
-			return { columns: positionalColumns(width), dataRecords: source }
-		}
-		const first = source[0]
-		if (first === undefined) return { columns: [], dataRecords: [] }
-		const location = { line: first.line, column: first.column, offset: first.offset }
-		const rawNames = first.fields.map((field) => field.value)
-		const columns = uniqueColumns(rawNames)
-		const seen: string[] = []
-		rawNames.forEach((name, position) => {
-			if (name.trim() === '') {
-				pushError(
-					() => new CSVError('EMPTY_HEADER', 'header name is empty', location, { index: position }),
-				)
-			} else if (seen.includes(name)) {
-				pushError(
-					() =>
-						new CSVError('DUPLICATE_HEADER', 'header name repeats an earlier one', location, {
-							name,
-							index: position,
-						}),
-				)
-			}
-			seen.push(name)
-		})
-		return { columns, dataRecords: source.slice(1) }
-	}
-
-	// Builds one data record into a null-prototype `Row`, padding/dropping to
-	// match the column count `columns.length` per `options.ragged`.
-	function buildRow(
-		record: RawRecord,
-		columns: readonly string[],
-		position: number,
-	): Row | undefined {
-		const width = columns.length
-		const fields = record.fields
-		const actual = fields.length
-		const row: Row = Object.create(null)
-		const location = { line: record.line, column: record.column, offset: record.offset }
-
-		if (actual < width) {
-			if (resolved.ragged !== 'pad') {
-				pushError(
-					() =>
-						new CSVError('RAGGED_ROW', 'record has fewer fields than columns', location, {
-							expected: width,
-							actual,
-							index: position,
-						}),
-				)
-			}
-			if (resolved.ragged === 'error') return undefined
-			for (let column = 0; column < width; column += 1) {
-				const columnName = columns[column]
-				if (columnName === undefined) continue
-				const field = fields[column]
-				row[columnName] = field === undefined ? undefined : field.value
-			}
-			return row
-		}
-
-		if (actual > width) {
-			if (resolved.ragged !== 'pad') {
-				pushError(
-					() =>
-						new CSVError('RAGGED_ROW', 'record has more fields than columns', location, {
-							expected: width,
-							actual,
-							dropped: fields.slice(width).map((field) => field.value),
-							index: position,
-						}),
-				)
-			}
-			if (resolved.ragged === 'error') return undefined
-			for (let column = 0; column < width; column += 1) {
-				const columnName = columns[column]
-				if (columnName === undefined) continue
-				const field = fields[column]
-				row[columnName] = field === undefined ? undefined : field.value
-			}
-			return row
-		}
-
-		for (let column = 0; column < width; column += 1) {
-			const columnName = columns[column]
-			if (columnName === undefined) continue
-			const field = fields[column]
-			row[columnName] = field === undefined ? undefined : field.value
-		}
-		return row
-	}
-
-	// Re-types every cell (via `inferColumnType` / `coerceCell`) once all rows
-	// are built - mutates `rows` in place, a construction-time step on our own
-	// output, not on an input parameter.
-	function applyInference(columns: readonly string[], rows: readonly Row[]): void {
-		const types = columns.map((column) => {
-			const values: string[] = []
-			for (const row of rows) {
-				const value = row[column]
-				if (typeof value === 'string') values.push(value)
-			}
-			return inferColumnType(values)
-		})
-		rows.forEach((row) => {
-			columns.forEach((column, position) => {
-				const value = row[column]
-				const type = types[position]
-				if (typeof value === 'string' && type !== undefined) row[column] = coerceCell(value, type)
-			})
-		})
-	}
-
-	const { columns, dataRecords } = resolveHeader(records)
 	const rows: Row[] = []
-	dataRecords.forEach((record, position) => {
-		const row = buildRow(record, columns, position)
-		if (row !== undefined) rows.push(row)
+	header.body.forEach((record, index) => {
+		const result = buildRow(record, header.columns, resolved)
+		if (result.row !== undefined) rows.push(result.row)
+		if (result.error !== undefined) {
+			const error = new CSVError(
+				result.error.code,
+				result.error.message,
+				{ line: result.error.line, column: result.error.column, offset: result.error.offset },
+				{ ...result.error.context, index },
+			)
+			if (resolved.strict) throw error
+			if (errors.length < MAX_ERRORS) errors.push(error)
+		}
 	})
 
-	if (resolved.infer) applyInference(columns, rows)
+	const finalRows = resolved.infer ? inferRows(rows, header.columns) : rows
 
-	return { table: { columns, rows }, errors }
+	return { table: { columns: header.columns, rows: finalRows }, errors }
+}
+
+/**
+ * Coerce a raw cell string to a canonical integer - `undefined` for anything
+ * else (leading zeros, decimals, out-of-safe-range magnitude, non-numeric text).
+ *
+ * @param value - The raw cell text
+ * @returns The integer, or `undefined` when `value` is not a canonical
+ * integer within `Number.isSafeInteger` range
+ *
+ * @example
+ * ```ts
+ * parseInteger('42')  // 42
+ * parseInteger('007') // undefined
+ * ```
+ */
+export function parseInteger(value: string): number | undefined {
+	if (!INTEGER_PATTERN.test(value)) return undefined
+	const number = Number(value)
+	return Number.isSafeInteger(number) ? number : undefined
+}
+
+/**
+ * Coerce a raw cell string to a canonical decimal (or integer) - `undefined`
+ * for anything else.
+ *
+ * @param value - The raw cell text
+ * @returns The number, or `undefined` when `value` is not a canonical
+ * integer/decimal, or its integer part is out of `Number.isSafeInteger` range
+ *
+ * @example
+ * ```ts
+ * parseReal('3.14') // 3.14
+ * parseReal('42')   // 42
+ * ```
+ */
+export function parseReal(value: string): number | undefined {
+	if (INTEGER_PATTERN.test(value)) return parseInteger(value)
+	return REAL_PATTERN.test(value) ? Number(value) : undefined
+}
+
+/**
+ * Coerce a raw cell string to a strict boolean - `undefined` for anything
+ * other than the exact canonical forms.
+ *
+ * @param value - The raw cell text
+ * @returns `true` for {@link BOOLEAN_TRUE}, `false` for {@link BOOLEAN_FALSE},
+ * `undefined` otherwise
+ *
+ * @example
+ * ```ts
+ * parseBoolean('true')  // true
+ * parseBoolean('True')  // undefined
+ * ```
+ */
+export function parseBoolean(value: string): boolean | undefined {
+	if (value === BOOLEAN_TRUE) return true
+	if (value === BOOLEAN_FALSE) return false
+	return undefined
+}
+
+/**
+ * Coerce a raw cell string to a parsed JSON value - `undefined` on failure.
+ *
+ * @param value - The raw cell text
+ * @returns The parsed value, or `undefined` when `value` is not valid JSON
+ *
+ * @example
+ * ```ts
+ * parseJSON('{"a":1}')  // { a: 1 }
+ * parseJSON('not json') // undefined
+ * ```
+ */
+export function parseJSON(value: string): unknown {
+	try {
+		return JSON.parse(value)
+	} catch {
+		return undefined
+	}
 }

@@ -1,4 +1,4 @@
-import type { CSVTable, ColumnType, ParseOptions, RenderOptions, Row } from './types.js'
+import type { Columns, CSVTable, ColumnType, ParseOptions, RenderOptions, Row } from './types.js'
 import {
 	BOM,
 	BOOLEAN_FALSE,
@@ -9,18 +9,25 @@ import {
 	NUMERIC_PATTERN,
 	POSITIONAL_COLUMN_PREFIX,
 	REAL_PATTERN,
+	SANITIZE_ESCAPE,
 	SANITIZE_PREFIXES,
+	SUFFIX_SEPARATOR,
 } from './constants.js'
 import { CSVError } from './errors.js'
+import { columnTypeShape } from './shapers.js'
 
 // Pure, total helper leaves the parser / renderer compose (AGENTS §5 / §14).
 // Every function here is a functional-core leaf: referentially transparent,
-// touching no external state, and (aside from the two option resolvers, which
-// throw on a programmer error per AGENTS §12) never throwing. `renderCSV` is
-// the one exception to "flat leaf" shape - it is the exported orchestration
-// entry point whose sub-steps are nested inner functions, mirroring the
-// markdown package's `renderHTML` / `renderMarkdown` pattern, so the only
-// exported surface for that engine is `renderCSV` itself.
+// touching no external state, and (aside from the two option resolvers,
+// which throw on a programmer error per AGENTS §12) never throwing.
+//
+// Dependency direction: `parsers.ts` imports the option resolvers and
+// `inferColumnType` from this file, so this file must NEVER import back from
+// `parsers.ts` (that would be a cycle). `inferColumnType`'s integer/real
+// tests therefore work directly off the shared pattern constants
+// (`INTEGER_PATTERN` / `REAL_PATTERN` from `constants.ts`, the same
+// constants `parsers.ts`'s `parseInteger` / `parseReal` test against) and
+// `Number.isSafeInteger` - never calling the `parsers.ts` coercers.
 
 /**
  * Strip a single leading UTF-8 byte-order-mark (U+FEFF) from `input`, if
@@ -116,6 +123,25 @@ export function resolveRenderOptions(
 	return resolved
 }
 
+/** The fully-resolved shape {@link resolveRenderOptions} returns. */
+export type ResolvedRenderOptions = ReturnType<typeof resolveRenderOptions>
+
+/**
+ * Generate positional column names (`column1`, `column2`, …) for a header-less
+ * table of the given field width.
+ *
+ * @param width - The number of columns
+ * @returns `width` positional names, 1-based
+ *
+ * @example
+ * ```ts
+ * positionalColumns(3) // ['column1', 'column2', 'column3']
+ * ```
+ */
+export function positionalColumns(width: number): readonly string[] {
+	return Array.from({ length: width }, (_, index) => `${POSITIONAL_COLUMN_PREFIX}${index + 1}`)
+}
+
 /**
  * Conservatively infer a whole column's {@link ColumnType} from its raw
  * string values - never `'json'` or `'blob'` (those require an explicit
@@ -160,56 +186,29 @@ export function inferColumnType(values: readonly string[]): ColumnType {
 }
 
 /**
- * Coerce one raw cell value to its typed representation for `type` - the
- * inverse of stringifying a value for render.
+ * Disambiguate a single column name against the names already taken - the
+ * collision leaf {@link uniqueColumns} composes over an entire header.
  *
- * @param value - The raw cell text
- * @param type - The column's {@link ColumnType}
- * @returns `value` unchanged for `'text'` / `'blob'`; `undefined` for an
- * empty string with any other type; `Number(value)` for `'integer'` /
- * `'real'`; a strict boolean for `'boolean'`; the parsed value (or the raw
- * string on failure) for `'json'`
+ * @param name - The candidate name
+ * @param taken - The names already claimed
+ * @returns `name` unchanged when not in `taken`; otherwise `name` suffixed
+ * `_2`, `_3`, … (see {@link SUFFIX_SEPARATOR}) until a form not in `taken` is found
  *
  * @example
  * ```ts
- * coerceCell('42', 'integer')      // 42
- * coerceCell('true', 'boolean')    // true
- * coerceCell('{"a":1}', 'json')    // { a: 1 }
- * coerceCell('not json', 'json')   // 'not json'
+ * uniqueName('a', new Set(['a']))         // 'a_2'
+ * uniqueName('a', new Set(['a', 'a_2']))  // 'a_3'
  * ```
  */
-export function coerceCell(value: string, type: ColumnType): unknown {
-	if (type === 'text' || type === 'blob') return value
-	if (value === '') return undefined
-	switch (type) {
-		case 'integer':
-		case 'real':
-			return Number(value)
-		case 'boolean':
-			return value === BOOLEAN_TRUE
-		case 'json':
-			try {
-				return JSON.parse(value)
-			} catch {
-				return value
-			}
+export function uniqueName(name: string, taken: ReadonlySet<string>): string {
+	if (!taken.has(name)) return name
+	let suffix = 2
+	let candidate = `${name}${SUFFIX_SEPARATOR}${suffix}`
+	while (taken.has(candidate)) {
+		suffix += 1
+		candidate = `${name}${SUFFIX_SEPARATOR}${suffix}`
 	}
-}
-
-/**
- * Generate positional column names (`column1`, `column2`, …) for a header-less
- * table of the given field width.
- *
- * @param width - The number of columns
- * @returns `width` positional names, 1-based
- *
- * @example
- * ```ts
- * positionalColumns(3) // ['column1', 'column2', 'column3']
- * ```
- */
-export function positionalColumns(width: number): readonly string[] {
-	return Array.from({ length: width }, (_, index) => `${POSITIONAL_COLUMN_PREFIX}${index + 1}`)
+	return candidate
 }
 
 /**
@@ -229,24 +228,9 @@ export function positionalColumns(width: number): readonly string[] {
 export function uniqueColumns(names: readonly string[]): readonly string[] {
 	const kept: string[] = []
 	const seen = new Set<string>()
-
-	// Shared collision resolver - both a literal name and a generated
-	// positional name (from an empty/whitespace source name) run through this
-	// same suffix loop, so neither can collide with an already-kept name.
-	function resolveUnique(base: string): string {
-		if (!seen.has(base)) return base
-		let suffix = 2
-		let candidate = `${base}_${suffix}`
-		while (seen.has(candidate)) {
-			suffix += 1
-			candidate = `${base}_${suffix}`
-		}
-		return candidate
-	}
-
 	for (const [index, name] of names.entries()) {
 		const base = name.trim() === '' ? `${POSITIONAL_COLUMN_PREFIX}${index + 1}` : name
-		const unique = resolveUnique(base)
+		const unique = uniqueName(base, seen)
 		kept.push(unique)
 		seen.add(unique)
 	}
@@ -256,12 +240,12 @@ export function uniqueColumns(names: readonly string[]): readonly string[] {
 /**
  * Guard a field against CSV/spreadsheet formula injection (the OWASP
  * CSV-injection guidance) - a field starting with a formula-triggering
- * character is prefixed with a protective `'`.
+ * character is prefixed with a protective {@link SANITIZE_ESCAPE}.
  *
  * @param field - The raw field text (already stringified, not yet quoted)
- * @returns `field` prefixed with `'` when it starts with `=`, `@`, tab, CR, or
- * LF, or with `+` / `-` UNLESS the whole field is a plain signed number;
- * unchanged otherwise
+ * @returns `field` prefixed with {@link SANITIZE_ESCAPE} when it starts with
+ * `=`, `@`, tab, CR, or LF, or with `+` / `-` UNLESS the whole field is a
+ * plain signed number; unchanged otherwise
  *
  * @example
  * ```ts
@@ -274,47 +258,260 @@ export function sanitizeField(field: string): string {
 	const first = field.charAt(0)
 	if (first === '' || !SANITIZE_PREFIXES.has(first)) return field
 	if ((first === '+' || first === '-') && NUMERIC_PATTERN.test(field)) return field
-	return `'${field}`
+	return `${SANITIZE_ESCAPE}${field}`
 }
 
 /**
- * Decide whether `field` needs quoting under `options.quotes` and, if so,
- * wrap and escape it - the renderer's one quoting/escaping leaf.
+ * Serialize one cell value to its rendered text - the renderer's stringify
+ * leaf, applied before sanitize/quote.
  *
- * @param field - The already-sanitized field text
- * @param options - The resolved render options (see {@link resolveRenderOptions})
- * @returns `field`, quoted and escaped per `options`, or unchanged when no
- * quoting is required
- * @remarks A field containing the delimiter, the quote character, CR, or LF
- * is ALWAYS quoted regardless of `options.quotes` (the correctness floor).
+ * @param value - The cell value
+ * @param blank - The text a `null` / `undefined` value serializes to
+ * @returns `blank` for `null` / `undefined`; the string unchanged for a
+ * string; `String(value)` for a number/boolean/bigint; `JSON.stringify`'s
+ * result for an object/array, degrading to `blank` on a circular value
  *
  * @example
  * ```ts
- * quoteField('a,b', resolveRenderOptions())  // '"a,b"'
- * quoteField('plain', resolveRenderOptions()) // 'plain'
+ * serializeCell(null, '')        // ''
+ * serializeCell(42, '')          // '42'
+ * serializeCell({ a: 1 }, '')    // '{"a":1}'
  * ```
  */
-export function quoteField(
-	field: string,
-	options: ReturnType<typeof resolveRenderOptions>,
-): string {
-	const needsQuote =
+export function serializeCell(value: unknown, blank: string): string {
+	if (value === null || value === undefined) return blank
+	if (typeof value === 'string') return value
+	if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint')
+		return String(value)
+	try {
+		return JSON.stringify(value) ?? blank
+	} catch {
+		return blank
+	}
+}
+
+/**
+ * Derive a column order from a plain row list - the first-seen union of
+ * every row's keys, in encounter order.
+ *
+ * @param rows - The rows to scan
+ * @returns The union of keys across `rows`, first-seen order
+ *
+ * @example
+ * ```ts
+ * deriveColumns([{ a: 1, b: 2 }, { b: 3, c: 4 }]) // ['a', 'b', 'c']
+ * ```
+ */
+export function deriveColumns(rows: readonly Row[]): readonly string[] {
+	const seen = new Set<string>()
+	for (const row of rows) {
+		for (const key of Object.keys(row)) seen.add(key)
+	}
+	return [...seen]
+}
+
+/**
+ * The correctness floor every {@link QuoteStyle} policy respects - a field
+ * containing the delimiter, the quote character, CR, or LF must ALWAYS be
+ * quoted regardless of policy.
+ *
+ * @param field - The already-sanitized field text
+ * @param options - The resolved render options (see {@link resolveRenderOptions})
+ * @returns `true` when `field` contains the delimiter, quote, CR, or LF
+ *
+ * @example
+ * ```ts
+ * needsQuote('a,b', resolveRenderOptions()) // true
+ * needsQuote('plain', resolveRenderOptions()) // false
+ * ```
+ */
+export function needsQuote(field: string, options: ResolvedRenderOptions): boolean {
+	return (
 		field.includes(options.delimiter) ||
 		field.includes(options.quote) ||
 		field.includes('\r') ||
 		field.includes('\n')
-	const shouldQuote =
-		options.quotes === 'always'
-			? true
-			: options.quotes === 'nonnumeric'
-				? needsQuote || !NUMERIC_PATTERN.test(field)
-				: needsQuote
-	if (!shouldQuote) return field
+	)
+}
+
+/**
+ * Escape a quote character by doubling every occurrence - the `'double'`
+ * {@link EscapeStyle}.
+ *
+ * @param field - The field text (already known to need quoting)
+ * @param quote - The quote character to escape
+ * @returns `field` with every `quote` occurrence doubled
+ *
+ * @example
+ * ```ts
+ * escapeQuotes('a"b', '"') // 'a""b'
+ * ```
+ */
+export function escapeQuotes(field: string, quote: string): string {
+	return field.split(quote).join(quote + quote)
+}
+
+/**
+ * Escape a quote character by prefixing it (and every literal backslash)
+ * with a backslash - the `'backslash'` {@link EscapeStyle}.
+ *
+ * @param field - The field text (already known to need quoting)
+ * @param quote - The quote character to escape
+ * @returns `field` with every backslash doubled and every `quote` prefixed with `\`
+ *
+ * @example
+ * ```ts
+ * escapeBackslashes('a"b', '"')  // 'a\\"b'
+ * escapeBackslashes('a\\b', '"') // 'a\\\\b'
+ * ```
+ */
+export function escapeBackslashes(field: string, quote: string): string {
+	return field.split('\\').join('\\\\').split(quote).join(`\\${quote}`)
+}
+
+/**
+ * Wrap `field` in quotes, escaping per `options.escape` - the shared
+ * quote-and-escape step every quoting policy applies once it decides `field`
+ * needs quoting.
+ *
+ * @param field - The field text, already known to need quoting
+ * @param options - The resolved render options
+ * @returns `field` wrapped in `options.quote`, escaped per `options.escape`
+ *
+ * @example
+ * ```ts
+ * wrapQuoted('a"b', resolveRenderOptions()) // '"a""b"'
+ * ```
+ */
+export function wrapQuoted(field: string, options: ResolvedRenderOptions): string {
 	const escaped =
 		options.escape === 'double'
-			? field.split(options.quote).join(options.quote + options.quote)
-			: field.split('\\').join('\\\\').split(options.quote).join(`\\${options.quote}`)
+			? escapeQuotes(field, options.quote)
+			: escapeBackslashes(field, options.quote)
 	return `${options.quote}${escaped}${options.quote}`
+}
+
+/**
+ * The `'minimal'` {@link QuoteStyle} - quotes a field only when
+ * {@link needsQuote} requires it.
+ *
+ * @param field - The already-sanitized field text
+ * @param options - The resolved render options
+ * @returns `field`, quoted and escaped when needed; unchanged otherwise
+ *
+ * @example
+ * ```ts
+ * quoteMinimal('a,b', resolveRenderOptions())  // '"a,b"'
+ * quoteMinimal('plain', resolveRenderOptions()) // 'plain'
+ * ```
+ */
+export function quoteMinimal(field: string, options: ResolvedRenderOptions): string {
+	return needsQuote(field, options) ? wrapQuoted(field, options) : field
+}
+
+/**
+ * The `'always'` {@link QuoteStyle} - quotes every field unconditionally.
+ *
+ * @param field - The already-sanitized field text
+ * @param options - The resolved render options
+ * @returns `field`, quoted and escaped
+ *
+ * @example
+ * ```ts
+ * quoteAlways('plain', resolveRenderOptions()) // '"plain"'
+ * ```
+ */
+export function quoteAlways(field: string, options: ResolvedRenderOptions): string {
+	return wrapQuoted(field, options)
+}
+
+/**
+ * The `'nonnumeric'` {@link QuoteStyle} - quotes every field whose value is
+ * not a plain number (or that {@link needsQuote} requires regardless).
+ *
+ * @param field - The already-sanitized field text
+ * @param options - The resolved render options
+ * @returns `field`, quoted and escaped when needed; unchanged otherwise
+ *
+ * @example
+ * ```ts
+ * quoteNonnumeric('42', resolveRenderOptions())   // '42'
+ * quoteNonnumeric('text', resolveRenderOptions()) // '"text"'
+ * ```
+ */
+export function quoteNonnumeric(field: string, options: ResolvedRenderOptions): string {
+	const shouldQuote = needsQuote(field, options) || !NUMERIC_PATTERN.test(field)
+	return shouldQuote ? wrapQuoted(field, options) : field
+}
+
+/**
+ * Render one row to one delimited line - serialize every column's cell,
+ * optionally sanitize it, then apply the given quoting policy.
+ *
+ * @param row - The row to render
+ * @param columns - The column order to render, in order
+ * @param options - The resolved render options
+ * @param quote - The quoting policy function to apply to each field (see
+ * {@link quoteMinimal} / {@link quoteAlways} / {@link quoteNonnumeric})
+ * @returns The rendered line, columns joined by `options.delimiter`
+ *
+ * @example
+ * ```ts
+ * renderRecord({ a: 1, b: 2 }, ['a', 'b'], resolveRenderOptions(), quoteMinimal) // '1,2'
+ * ```
+ */
+export function renderRecord(
+	row: Row,
+	columns: readonly string[],
+	options: ResolvedRenderOptions,
+	quote: (field: string, options: ResolvedRenderOptions) => string,
+): string {
+	return columns
+		.map((column) => {
+			const serialized = serializeCell(row[column], options.blank)
+			const sanitized = options.sanitize ? sanitizeField(serialized) : serialized
+			return quote(sanitized, options)
+		})
+		.join(options.delimiter)
+}
+
+/**
+ * Select the quoting-policy function for a resolved `options.quotes`.
+ *
+ * @param quotes - The resolved {@link QuoteStyle}
+ * @returns {@link quoteMinimal}, {@link quoteAlways}, or {@link quoteNonnumeric}
+ *
+ * @example
+ * ```ts
+ * selectQuotePolicy('always') // quoteAlways
+ * ```
+ */
+export function selectQuotePolicy(
+	quotes: ResolvedRenderOptions['quotes'],
+): (field: string, options: ResolvedRenderOptions) => string {
+	switch (quotes) {
+		case 'always':
+			return quoteAlways
+		case 'nonnumeric':
+			return quoteNonnumeric
+		case 'minimal':
+			return quoteMinimal
+	}
+}
+
+/**
+ * Narrow a `CSVTable | readonly Row[]` union to its row-list member.
+ *
+ * @remarks
+ * `Array.isArray` alone does not narrow a `readonly Row[]` union member (a
+ * TypeScript limitation with readonly arrays) - an explicit type predicate
+ * narrows reliably in both branches.
+ *
+ * @param source - A {@link CSVTable}, or a plain readonly row list
+ * @returns `true` when `source` is a plain row list
+ */
+export function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
+	return Array.isArray(source)
 }
 
 /**
@@ -322,12 +519,10 @@ export function quoteField(
  *
  * @remarks
  * Total: a `JSON.stringify` failure (a circular value) degrades to
- * `options.blank` instead of throwing. Columns default to `options.columns`,
- * or the source table's own `columns`, or - for a plain row list - the
- * first-seen union of every row's keys. No trailing newline follows the last
- * record. The engine's sub-steps (column resolution, cell serialization,
- * sanitize + quote, row assembly) are nested inner functions - `renderCSV`
- * itself is the only exported surface.
+ * `options.blank` instead of throwing (see {@link serializeCell}). Columns
+ * default to `options.columns`, or the source table's own `columns`, or -
+ * for a plain row list - {@link deriveColumns}'s first-seen key union. No
+ * trailing newline follows the last record.
  *
  * @param input - A {@link CSVTable}, or a plain readonly row list
  * @param options - Render options (see {@link resolveRenderOptions})
@@ -342,55 +537,17 @@ export function quoteField(
  */
 export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOptions): string {
 	const resolved = resolveRenderOptions(options)
+	const rows: readonly Row[] = isRowList(input) ? input : input.rows
+	const columns = resolved.columns ?? (isRowList(input) ? deriveColumns(input) : input.columns)
+	const quote = selectQuotePolicy(resolved.quotes)
 
-	// `Array.isArray` alone does not narrow a `readonly Row[]` union member
-	// (a TypeScript limitation with readonly arrays) - an explicit type
-	// predicate narrows reliably in both branches.
-	function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
-		return Array.isArray(source)
-	}
-
-	function resolveColumns(source: CSVTable | readonly Row[]): readonly string[] {
-		if (resolved.columns) return resolved.columns
-		if (!isRowList(source)) return source.columns
-		const seen = new Set<string>()
-		for (const row of source) {
-			for (const key of Object.keys(row)) seen.add(key)
-		}
-		return [...seen]
-	}
-
-	function serialize(value: unknown): string {
-		if (value === null || value === undefined) return resolved.blank
-		if (typeof value === 'string') return value
-		if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint')
-			return String(value)
-		try {
-			return JSON.stringify(value) ?? resolved.blank
-		} catch {
-			return resolved.blank
-		}
-	}
-
-	function formatField(raw: string): string {
-		const sanitized = resolved.sanitize ? sanitizeField(raw) : raw
-		return quoteField(sanitized, resolved)
-	}
-
-	function rowLine(row: Row, columns: readonly string[]): string {
-		return columns.map((column) => formatField(serialize(row[column]))).join(resolved.delimiter)
-	}
-
-	function resolveRows(source: CSVTable | readonly Row[]): readonly Row[] {
-		return isRowList(source) ? source : source.rows
-	}
-
-	const columns = resolveColumns(input)
-	const rows = resolveRows(input)
 	const lines: string[] = []
-	if (resolved.header)
-		lines.push(columns.map((column) => formatField(column)).join(resolved.delimiter))
-	for (const row of rows) lines.push(rowLine(row, columns))
+	if (resolved.header) {
+		const headerRow: Row = Object.create(null)
+		for (const column of columns) headerRow[column] = column
+		lines.push(renderRecord(headerRow, columns, resolved, quote))
+	}
+	for (const row of rows) lines.push(renderRecord(row, columns, resolved, quote))
 	const body = lines.join(resolved.newline)
 	return resolved.bom ? `${BOM}${body}` : body
 }
@@ -416,4 +573,46 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
  */
 export function renderTSV(input: CSVTable | readonly Row[], options?: RenderOptions): string {
 	return renderCSV(input, { ...options, delimiter: '\t' })
+}
+
+/**
+ * Derive one {@link ContractShape} per table column from that column's cell
+ * values across all rows (excluding `undefined`/empty-string cells) - the
+ * schema-inference leaf behind {@link CSVInterface.export} when no explicit
+ * {@link Columns} is given.
+ *
+ * @param table - The table to inspect
+ * @returns A {@link Columns} map, one shape per column: `'text'` when a
+ * column has no non-empty cells; the string-inferred type (via
+ * {@link inferColumnType}) when every cell is a string; `'integer'` /
+ * `'real'` when every cell is a number (by `Number.isSafeInteger`);
+ * `'boolean'` when every cell is a boolean; `'json'` otherwise
+ *
+ * @example
+ * ```ts
+ * deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 2 }] })
+ * // { a: columnTypeShape('integer') }
+ * ```
+ */
+export function deriveShapes(table: CSVTable): Columns {
+	const columns: Record<string, ReturnType<typeof columnTypeShape>> = {}
+	for (const column of table.columns) {
+		const values = table.rows
+			.map((row) => row[column])
+			.filter((value) => value !== undefined && value !== '')
+		if (values.length === 0) {
+			columns[column] = columnTypeShape('text')
+		} else if (values.every((value): value is string => typeof value === 'string')) {
+			columns[column] = columnTypeShape(inferColumnType(values))
+		} else if (values.every((value) => typeof value === 'number')) {
+			columns[column] = columnTypeShape(
+				values.every((value) => Number.isSafeInteger(value)) ? 'integer' : 'real',
+			)
+		} else if (values.every((value) => typeof value === 'boolean')) {
+			columns[column] = columnTypeShape('boolean')
+		} else {
+			columns[column] = columnTypeShape('json')
+		}
+	}
+	return columns
 }
