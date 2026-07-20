@@ -31,7 +31,7 @@ malformation.
 A short intro, then a minimal usage example:
 
 ```ts
-import { createCSV } from '@src/core'
+import { createCSV } from '@orkestrel/csv'
 
 const csv = createCSV('name,age\nAda,36\nGrace,85', { infer: true })
 csv.rows // [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }]
@@ -329,7 +329,7 @@ Every feature below has a compact, runnable example.
 ### Parse and query
 
 ```ts
-import { createCSV } from '@src/core'
+import { createCSV } from '@orkestrel/csv'
 
 const csv = createCSV('name,age\nAda,36\nGrace,85', { infer: true })
 csv.table // { columns: ['name', 'age'], rows: [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }] }
@@ -341,8 +341,8 @@ const adults = csv.filter((row) => Number(row.age) >= 40) // readonly Row[]
 ### Rewrite with `map`, then render back
 
 ```ts
-import { createCSV } from '@src/core'
-import { renderCSV } from '@src/core'
+import { createCSV } from '@orkestrel/csv'
+import { renderCSV } from '@orkestrel/csv'
 
 const csv = createCSV('name,age\nAda,36', { infer: true })
 const older = csv.map((row) => ({ ...row, age: Number(row.age) + 1 }))
@@ -356,7 +356,7 @@ mutated.
 ### Reduce into an accumulator
 
 ```ts
-import { createCSV } from '@src/core'
+import { createCSV } from '@orkestrel/csv'
 
 const csv = createCSV('amount\n10\n20\n30', { infer: true })
 
@@ -366,7 +366,7 @@ const total = csv.reduce<number>((sum, row) => sum + Number(row.amount), 0) // 6
 ### Streaming rows
 
 ```ts
-import { createCSV } from '@src/core'
+import { createCSV } from '@orkestrel/csv'
 
 const csv = createCSV('a\n1\n2\n3')
 
@@ -381,7 +381,7 @@ for (let result = await reader.read(); !result.done; result = await reader.read(
 ### Handling errors without `strict`
 
 ```ts
-import { createCSV, isCSVError } from '@src/core'
+import { createCSV, isCSVError } from '@orkestrel/csv'
 
 const csv = createCSV('a,b\n1,2,3') // ragged row — collected, not thrown
 csv.errors.length > 0 // true
@@ -393,7 +393,7 @@ for (const error of csv.errors) {
 ### `strict` mode throws the first error
 
 ```ts
-import { createCSV, isCSVError } from '@src/core'
+import { createCSV, isCSVError } from '@orkestrel/csv'
 
 try {
 	createCSV('a,b\n1,2,3', { strict: true })
@@ -405,7 +405,7 @@ try {
 ### Exporting a portable schema
 
 ```ts
-import { createCSV } from '@src/core'
+import { createCSV } from '@orkestrel/csv'
 
 const csv = createCSV('id,name\n1,Ada\n2,Grace', { infer: true })
 const table = csv.export() // { key: 'id', columns: {...}, schema: {...} }
@@ -415,7 +415,7 @@ table.schema // a JSON Schema describing every column
 ### Contract-backed row validation
 
 ```ts
-import { createTableContract, columnTypeShape } from '@src/core'
+import { createTableContract, columnTypeShape } from '@orkestrel/csv'
 
 const contract = createTableContract({
 	id: columnTypeShape('integer'),
@@ -428,8 +428,8 @@ contract.is({ id: 'x', name: 'Ada' }) // false
 ### Guarding an adopted table
 
 ```ts
-import { createCSV, isCSVTable } from '@src/core'
-import type { CSVTable } from '@src/core'
+import { createCSV, isCSVTable } from '@orkestrel/csv'
+import type { CSVTable } from '@orkestrel/csv'
 
 function adopt(candidate: unknown) {
 	if (!isCSVTable(candidate)) return undefined // total guard - never throws
@@ -440,7 +440,7 @@ function adopt(candidate: unknown) {
 ### Rendering to TSV
 
 ```ts
-import { renderTSV } from '@src/core'
+import { renderTSV } from '@orkestrel/csv'
 
 renderTSV({ columns: ['a', 'b'], rows: [{ a: 1, b: 2 }] }) // 'a\tb\r\n1\t2'
 ```
@@ -448,7 +448,13 @@ renderTSV({ columns: ['a', 'b'], rows: [{ a: 1, b: 2 }] }) // 'a\tb\r\n1\t2'
 ### Tokenizer leaves directly
 
 ```ts
-import { coerceInferred, isBreakChar, isRowList, resolveParseOptions, scanField } from '@src/core'
+import {
+	coerceInferred,
+	isBreakChar,
+	isRowList,
+	resolveParseOptions,
+	scanField,
+} from '@orkestrel/csv'
 
 isBreakChar('\n') // true
 isBreakChar('a') // false
