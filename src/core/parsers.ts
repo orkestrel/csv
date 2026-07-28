@@ -635,7 +635,11 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 			const error = new CSVError(
 				result.error.code,
 				result.error.message,
-				{ line: result.error.line, column: result.error.column, offset: result.error.offset },
+				{
+					...(result.error.line !== undefined ? { line: result.error.line } : {}),
+					...(result.error.column !== undefined ? { column: result.error.column } : {}),
+					...(result.error.offset !== undefined ? { offset: result.error.offset } : {}),
+				},
 				{ ...result.error.context, index },
 			)
 			if (resolved.strict) throw error

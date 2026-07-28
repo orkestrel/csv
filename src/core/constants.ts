@@ -10,7 +10,7 @@ export const BOM = '﻿'
  * The resolved default {@link ParseOptions} - what `parseCSV` uses for any
  * option left unspecified.
  */
-export const DEFAULT_PARSE_OPTIONS: Required<ParseOptions> = {
+export const DEFAULT_PARSE_OPTIONS: Required<ParseOptions> = Object.freeze({
 	delimiter: ',',
 	quote: '"',
 	escape: 'double',
@@ -22,13 +22,13 @@ export const DEFAULT_PARSE_OPTIONS: Required<ParseOptions> = {
 	infer: false,
 	limit: 0,
 	strict: false,
-}
+})
 
 /**
  * The resolved default {@link RenderOptions} (everything but `columns`, which
  * has no default) - what `renderCSV` uses for any option left unspecified.
  */
-export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = {
+export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = Object.freeze({
 	delimiter: ',',
 	quote: '"',
 	escape: 'double',
@@ -38,7 +38,7 @@ export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = 
 	blank: '',
 	sanitize: true,
 	bom: false,
-}
+})
 
 /**
  * The leading characters the OWASP CSV-injection guard treats as

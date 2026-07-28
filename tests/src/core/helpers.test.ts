@@ -54,6 +54,16 @@ describe('resolveParseOptions', () => {
 		expect(isCSVError(error) && error.code === 'INVALID_OPTION').toBe(true)
 	})
 
+	it('omits absent location and context from INVALID_OPTION errors', () => {
+		const caught = captureError(() => resolveParseOptions({ delimiter: '' }))
+		const error = assertAndNarrow(isCSVError, caught)
+
+		expect(Object.hasOwn(error, 'line')).toBe(false)
+		expect(Object.hasOwn(error, 'column')).toBe(false)
+		expect(Object.hasOwn(error, 'offset')).toBe(false)
+		expect(Object.hasOwn(error, 'context')).toBe(false)
+	})
+
 	it('throws INVALID_OPTION when quote is not one character', () => {
 		const error = captureError(() => resolveParseOptions({ quote: '""' }))
 		expect(isCSVError(error) && error.code === 'INVALID_OPTION').toBe(true)

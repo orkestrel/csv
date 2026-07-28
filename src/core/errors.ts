@@ -19,10 +19,10 @@ import type { CSVErrorCode } from './types.js'
  */
 export class CSVError extends Error {
 	readonly code: CSVErrorCode
-	readonly line?: number
-	readonly column?: number
-	readonly offset?: number
-	readonly context?: Readonly<Record<string, unknown>>
+	declare readonly line?: number
+	declare readonly column?: number
+	declare readonly offset?: number
+	declare readonly context?: Readonly<Record<string, unknown>>
 
 	constructor(
 		code: CSVErrorCode,
@@ -37,10 +37,10 @@ export class CSVError extends Error {
 		super(message)
 		this.name = 'CSVError'
 		this.code = code
-		this.line = location?.line
-		this.column = location?.column
-		this.offset = location?.offset
-		this.context = context
+		if (location?.line !== undefined) this.line = location.line
+		if (location?.column !== undefined) this.column = location.column
+		if (location?.offset !== undefined) this.offset = location.offset
+		if (context !== undefined) this.context = context
 	}
 }
 

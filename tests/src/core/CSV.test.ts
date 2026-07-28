@@ -1,4 +1,4 @@
-import type { CSVTable, ExportOptions } from '@src/core'
+import type { CSVTable, ExportOptions, Row } from '@src/core'
 import { stringShape } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
 import { assertAndNarrow } from '../../setup.js'
@@ -149,6 +149,16 @@ describe('CSV — stream', () => {
 		const second = await collectStream(csv.stream())
 		expect(first).toEqual(csv.rows)
 		expect(second).toEqual(csv.rows)
+	})
+
+	it('skips a sparse slot without dropping later rows', async () => {
+		const rows: Row[] = []
+		rows.length = 3
+		rows[1] = { a: '2' }
+		rows[2] = { a: '3' }
+		const csv = new CSV({ columns: ['a'], rows })
+
+		expect(await collectStream(csv.stream())).toEqual([{ a: '2' }, { a: '3' }])
 	})
 })
 

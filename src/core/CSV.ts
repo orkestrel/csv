@@ -154,12 +154,15 @@ export class CSV implements CSVInterface {
 		let index = 0
 		return new ReadableStream<Row>({
 			pull(controller) {
-				if (index < rows.length) {
-					controller.enqueue(rows[index])
+				while (index < rows.length) {
+					const row = rows[index]
 					index += 1
-				} else {
-					controller.close()
+					if (row !== undefined) {
+						controller.enqueue(row)
+						return
+					}
 				}
+				controller.close()
 			},
 		})
 	}
