@@ -4,7 +4,7 @@
 > hand-written, single-pass tokenizer that turns CSV text into a typed
 > `CSVTable`, and a stateful `CSV` workspace that wraps that table with
 > query, rewrite, streaming, and export operations. Source:
-> [`src/core`](../../src/core). Surfaced through the `@src/core` barrel.
+> [`src/core`](../src/core). Surfaced through the `@src/core` barrel.
 
 CSV here is: parse once into a typed `CSVTable` (columns + rows), then treat
 every read as a projection of it. `parseCSV` runs a tokenizer phase
@@ -39,7 +39,7 @@ csv.rows // [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }]
 
 ### Types
 
-The full parse/render/export shape, from [`types.ts`](../../src/core/types.ts).
+The full parse/render/export shape, from [`types.ts`](../src/core/types.ts).
 
 | Type                    | Kind      | Shape                                                                                                                                                                                              |
 | ----------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -70,7 +70,7 @@ The full parse/render/export shape, from [`types.ts`](../../src/core/types.ts).
 
 ### Errors
 
-From [`errors.ts`](../../src/core/errors.ts). AGENTS §12: an invalid option or
+From [`errors.ts`](../src/core/errors.ts). AGENTS §12: an invalid option or
 programmer error always throws a `CSVError`; a parse-time malformation is
 collected into a result's `errors` unless `strict` is set.
 
@@ -82,7 +82,7 @@ collected into a result's `errors` unless `strict` is set.
 ### Constants
 
 Centralized, frozen data the parser/renderer draw their defaults and
-canonical patterns from, from [`constants.ts`](../../src/core/constants.ts).
+canonical patterns from, from [`constants.ts`](../src/core/constants.ts).
 
 | Constant                   | Kind  | Behavior                                                                                                              |
 | -------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
@@ -103,7 +103,7 @@ canonical patterns from, from [`constants.ts`](../../src/core/constants.ts).
 ### Helpers
 
 Pure, total, zero-dependency parsing + rendering leaves from
-[`helpers.ts`](../../src/core/helpers.ts) — the functional core `parsers.ts`
+[`helpers.ts`](../src/core/helpers.ts) — the functional core `parsers.ts`
 composes and the projections callers reach for directly (AGENTS §5). Every
 function is unit-testable in isolation.
 
@@ -131,7 +131,7 @@ function is unit-testable in isolation.
 ### Parsers
 
 The tokenizer + table-building spine, from
-[`parsers.ts`](../../src/core/parsers.ts) — a hand-written, linear-time
+[`parsers.ts`](../src/core/parsers.ts) — a hand-written, linear-time
 character scanner, no regex, no backtracking.
 
 | Parser            | Kind     | Signature                                                                                        | Behavior                                                                                                                                                                                                                                                   |
@@ -157,7 +157,7 @@ character scanner, no regex, no backtracking.
 ### Shapers
 
 Declarative `ContractShape` values (from `@orkestrel/contract`), from
-[`shapers.ts`](../../src/core/shapers.ts) — one shape compiles into a guard,
+[`shapers.ts`](../src/core/shapers.ts) — one shape compiles into a guard,
 coercing parser, JSON Schema, and seeded generator.
 
 | Shaper            | Kind     | Signature                             | Behavior                                                                                                                 |
@@ -167,7 +167,7 @@ coercing parser, JSON Schema, and seeded generator.
 
 ### Validators
 
-Guards from [`validators.ts`](../../src/core/validators.ts) — total, never
+Guards from [`validators.ts`](../src/core/validators.ts) — total, never
 throw, return `false` for any off-shape input (AGENTS §14).
 
 | Guard          | Kind     | Narrows to / Tests                   | Behavior                                                                                                                                                                                                                                  |
@@ -178,7 +178,7 @@ throw, return `false` for any off-shape input (AGENTS §14).
 
 ### `CSV`
 
-The implementing class of `CSVInterface`, from [`CSV.ts`](../../src/core/CSV.ts).
+The implementing class of `CSVInterface`, from [`CSV.ts`](../src/core/CSV.ts).
 A parsed, queryable CSV document: constructed from a CSV `string` (runs
 `parseCSV`) or an already-parsed `CSVTable` (adopted AS-IS, not re-validated —
 `errors` is empty in that case). Exposes its parsed state through the
@@ -191,7 +191,7 @@ public call-signature surface.
 
 ### Factories
 
-From [`factories.ts`](../../src/core/factories.ts).
+From [`factories.ts`](../src/core/factories.ts).
 
 | Factory               | Kind     | Signature                                                             | Behavior                                                                                                        |
 | --------------------- | -------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -470,33 +470,33 @@ isRowList({ columns: ['a'], rows: [{ a: 1 }] }) // false
 
 ## Tests
 
-- [`../../tests/src/core/CSV.test.ts`](../../tests/src/core/CSV.test.ts) —
+- [`../../tests/src/core/CSV.test.ts`](../tests/src/core/CSV.test.ts) —
   construction from a string vs. an adopted table, `find`/`filter`/`reduce`,
   and `map` copy-on-write behavior.
-- [`../../tests/src/core/factories.test.ts`](../../tests/src/core/factories.test.ts) —
+- [`../../tests/src/core/factories.test.ts`](../tests/src/core/factories.test.ts) —
   `createCSV` and `createTableContract` return working, correctly-typed
   results.
-- [`../../tests/src/core/helpers.test.ts`](../../tests/src/core/helpers.test.ts) —
+- [`../../tests/src/core/helpers.test.ts`](../tests/src/core/helpers.test.ts) —
   option resolution (incl. `INVALID_OPTION` throws), type inference traps,
   cell coercion, column disambiguation, sanitization, and
   `renderCSV`/`renderTSV`.
-- [`../../tests/src/core/parsers.test.ts`](../../tests/src/core/parsers.test.ts) —
+- [`../../tests/src/core/parsers.test.ts`](../tests/src/core/parsers.test.ts) —
   `readRecords` and `parseCSV`, incl. ragged-row policies, header handling,
   and `strict`-mode throwing.
-- [`../../tests/src/core/shapers.test.ts`](../../tests/src/core/shapers.test.ts) —
+- [`../../tests/src/core/shapers.test.ts`](../tests/src/core/shapers.test.ts) —
   `columnTypeShape` per `ColumnType`, and `csvTableShape` structural
   validation.
-- [`../../tests/src/core/validators.test.ts`](../../tests/src/core/validators.test.ts) —
+- [`../../tests/src/core/validators.test.ts`](../tests/src/core/validators.test.ts) —
   `isCSVTable` and `isColumnType` soundness on well-formed and off-shape
   input, incl. its leniency-lock cases against `csvTableShape`.
 
 ## See also
 
-- [`AGENTS.md`](../../AGENTS.md) — the rules; §5 centralized-file pattern,
+- [`AGENTS.md`](../AGENTS.md) — the rules; §5 centralized-file pattern,
   §12 error handling, §14 guard totality, §22 documentation-as-contracts.
 - [`guide.md`](guide.md) — the mirrored guide for `@orkestrel/guide`, the
   devDependency powering this repo's guides-parity test suite.
 - [`contract.md`](contract.md) — the mirrored guide for `@orkestrel/contract`,
   this package's runtime dependency for shapes, guards, and compiled
   contracts.
-- [`README.md`](../README.md) — the guides index.
+- [`README.md`](README.md) — the guides index.
