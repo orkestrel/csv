@@ -649,7 +649,7 @@ describe('parseCSV', () => {
 	})
 
 	it('throws the first collected error when strict is true; collects otherwise', () => {
-		expect(() => parseCSV('a,b,c\n1,2', { strict: true, ragged: 'collect' })).toThrowError(
+		expect(() => parseCSV('a,b,c\n1,2', { strict: true, ragged: 'collect' })).toThrow(
 			'record has fewer fields than columns',
 		)
 		let caught: unknown
