@@ -1,5 +1,6 @@
 import type { CSVTable, ExportOptions, Row } from '@src/core'
 import { stringShape } from '@orkestrel/contract'
+import { collectStream } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
 import { assertAndNarrow } from '../../setup.js'
 import { CSV, deriveShapes, isCSVError } from '@src/core'
@@ -9,15 +10,6 @@ import { CSV, deriveShapes, isCSVError } from '@src/core'
 // export operations. Parse-behavior corpora live in parsers.test.ts — this
 // suite covers only the CLASS's own contract: construction, copy-on-write,
 // streaming, and export derivation.
-
-async function collectStream<T>(stream: ReadableStream<T>): Promise<T[]> {
-	const reader = stream.getReader()
-	const values: T[] = []
-	for (let result = await reader.read(); !result.done; result = await reader.read()) {
-		values.push(result.value)
-	}
-	return values
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null
