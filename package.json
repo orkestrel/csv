@@ -1,6 +1,6 @@
 {
 	"name": "@orkestrel/csv",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"description": "A typed CSV toolkit — RFC 4180 parsing and rendering with typed rows, dialect control, and structural database interop. Part of the @orkestrel line.",
 	"keywords": [
 		"csv",
@@ -65,7 +65,7 @@
 		"prepublishOnly": "npm run format:check && npm run lint:check && npm run check && npm run build && npm test"
 	},
 	"dependencies": {
-		"@orkestrel/contract": "^0.0.12"
+		"@orkestrel/contract": "^0.0.13"
 	},
 	"devDependencies": {
 		"@microsoft/api-extractor": "^7.59.0",
