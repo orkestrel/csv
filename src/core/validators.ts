@@ -1,5 +1,5 @@
 import type { Guard } from '@orkestrel/contract'
-import type { ColumnType, CSVTable, Row } from './types.js'
+import type { ColumnType, CSVTable } from './types.js'
 import { arrayOf, isRecord, isString, literalOf, recordOf } from '@orkestrel/contract'
 
 // AGENTS section 14: guards are total - never throw, return `false` for any
@@ -37,21 +37,6 @@ export const isCSVTable: Guard<CSVTable> = recordOf({
 	columns: arrayOf(isString),
 	rows: arrayOf(isRecord),
 })
-
-/**
- * Narrow a `CSVTable | readonly Row[]` union to its row-list member.
- *
- * @remarks
- * `Array.isArray` alone does not narrow a `readonly Row[]` union member (a
- * TypeScript limitation with readonly arrays) - an explicit type predicate
- * narrows reliably in both branches.
- *
- * @param source - A {@link CSVTable}, or a plain readonly row list
- * @returns `true` when `source` is a plain row list
- */
-export function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
-	return Array.isArray(source)
-}
 
 /**
  * Determine whether a value is a valid {@link ColumnType} literal.

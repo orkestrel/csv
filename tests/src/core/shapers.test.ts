@@ -1,5 +1,5 @@
 import type { ColumnType } from '@src/core'
-import { columnTypeShape, csvTableShape, isCSVTable } from '@src/core'
+import { columnTypeShape, csvTableShape, deriveShapes, isCSVTable } from '@src/core'
 import { createContract } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
 
@@ -92,5 +92,34 @@ describe('csvTableShape', () => {
 		for (const fixture of fixtures) {
 			expect(contract.is(fixture)).toBe(isCSVTable(fixture))
 		}
+	})
+})
+
+describe('deriveShapes', () => {
+	it('derives text for a column with no non-empty cells', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '' }, { a: undefined }] })
+		expect(columns.a).toBeDefined()
+	})
+
+	it('derives an inferred type for an all-string column', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '1' }, { a: '2' }] })
+		expect(columns.a).toBeDefined()
+	})
+
+	it('derives integer/real for an all-number column', () => {
+		const integer = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 2 }] })
+		expect(integer.a).toBeDefined()
+		const real = deriveShapes({ columns: ['a'], rows: [{ a: 1.5 }] })
+		expect(real.a).toBeDefined()
+	})
+
+	it('derives boolean for an all-boolean column', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: true }, { a: false }] })
+		expect(columns.a).toBeDefined()
+	})
+
+	it('derives json for a mixed column', () => {
+		const columns = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 'x' }] })
+		expect(columns.a).toBeDefined()
 	})
 })

@@ -9,8 +9,8 @@ import type {
 	TableExport,
 } from './types.js'
 import { CSVError } from './errors.js'
-import { deriveShapes } from './helpers.js'
 import { parseCSV } from './parsers.js'
+import { deriveShapes } from './shapers.js'
 
 /**
  * A parsed, queryable CSV document - wraps a typed {@link CSVTable} with the

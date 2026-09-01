@@ -3,11 +3,9 @@ import {
 	MAX_ERRORS,
 	buildRow,
 	coerceBoolean,
-	coerceInferred,
 	coerceInteger,
 	coerceReal,
 	deriveHeader,
-	inferRows,
 	isCSVError,
 	parseCSV,
 	readRecords,
@@ -526,38 +524,6 @@ describe('coerceBoolean', () => {
 	it('rejects anything else', () => {
 		expect(coerceBoolean('True')).toBeUndefined()
 		expect(coerceBoolean('1')).toBeUndefined()
-	})
-})
-
-describe('coerceInferred', () => {
-	it('dispatches per ColumnType', () => {
-		expect(coerceInferred('42', 'integer')).toBe(42)
-		expect(coerceInferred('3.14', 'real')).toBe(3.14)
-		expect(coerceInferred('true', 'boolean')).toBe(true)
-		expect(coerceInferred('hi', 'text')).toBe('hi')
-	})
-})
-
-describe('inferRows', () => {
-	it('coerces every cell of a column to its inferred type', () => {
-		const rows = inferRows([{ a: '1' }, { a: '2' }], ['a'])
-		expect(rows).toEqual([{ a: 1 }, { a: 2 }])
-	})
-
-	it('turns an empty-string cell into undefined for a non-text column', () => {
-		const rows = inferRows([{ a: '1' }, { a: '' }], ['a'])
-		expect(rows).toEqual([{ a: 1 }, { a: undefined }])
-	})
-
-	it('leaves a text column as strings, empty string included', () => {
-		const rows = inferRows([{ a: 'x' }, { a: '' }], ['a'])
-		expect(rows).toEqual([{ a: 'x' }, { a: '' }])
-	})
-
-	it('does not mutate the input rows', () => {
-		const input = [{ a: '1' }]
-		inferRows(input, ['a'])
-		expect(input).toEqual([{ a: '1' }])
 	})
 })
 

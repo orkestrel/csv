@@ -1,7 +1,8 @@
 import type { CSVParseResult, ParseOptions, Row } from './types.js'
 import { MAX_ERRORS } from './constants.js'
 import { CSVError } from './errors.js'
-import { buildRow, deriveHeader, inferRows, readRecords, resolveParseOptions } from './helpers.js'
+import { buildRow, deriveHeader, readRecords, resolveParseOptions } from './helpers.js'
+import { inferRows } from './inferers.js'
 
 // The table-building spine. `parseCSV` composes the tokenizer and
 // table-builder leaves that live in `helpers.ts` - the kind file for a pure

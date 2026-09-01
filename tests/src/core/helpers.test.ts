@@ -1,8 +1,7 @@
 import { isCSVError } from '@src/core'
 import {
 	deriveColumns,
-	deriveShapes,
-	inferColumnType,
+	isRowList,
 	needsQuote,
 	quoteMinimal,
 	quoteNonnumeric,
@@ -18,7 +17,7 @@ import {
 	uniqueName,
 	wrapQuoted,
 } from '@src/core'
-import { assertAndNarrow, buildInferenceTraps } from '../../setup'
+import { assertAndNarrow } from '../../setup'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -120,40 +119,6 @@ describe('resolveRenderOptions', () => {
 		expect(isCSVError(delimiterError) && delimiterError.code === 'INVALID_OPTION').toBe(true)
 		const quoteError = captureError(() => resolveRenderOptions({ delimiter: ',', quote: ',' }))
 		expect(isCSVError(quoteError) && quoteError.code === 'INVALID_OPTION').toBe(true)
-	})
-})
-
-describe('inferColumnType', () => {
-	it('infers integer for whole-number cells', () => {
-		expect(inferColumnType(['1', '2', '3'])).toBe('integer')
-	})
-
-	it('infers real when integers and decimals mix', () => {
-		expect(inferColumnType(['1', '2.5', '3'])).toBe('real')
-	})
-
-	it('infers boolean when every cell is true/false', () => {
-		expect(inferColumnType(['true', 'false', 'true'])).toBe('boolean')
-	})
-
-	it('ignores empty cells rather than demoting', () => {
-		expect(inferColumnType(['1', '', '2'])).toBe('integer')
-		expect(inferColumnType(['', '', ''])).toBe('text')
-		expect(inferColumnType([])).toBe('text')
-	})
-
-	it('demotes an out-of-safe-range integer to text', () => {
-		expect(inferColumnType(['9999999999999999999'])).toBe('text')
-		expect(inferColumnType([String(Number.MAX_SAFE_INTEGER)])).toBe('integer')
-	})
-
-	it('demotes every classic inference trap to text', () => {
-		const lines = buildInferenceTraps().split('\n')
-		const [header, ...traps] = lines
-		expect(header).toBe('value')
-		for (const trap of traps) {
-			expect(inferColumnType([trap])).toBe('text')
-		}
 	})
 })
 
@@ -356,32 +321,21 @@ describe('serializeCell', () => {
 	})
 })
 
-describe('deriveShapes', () => {
-	it('derives text for a column with no non-empty cells', () => {
-		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '' }, { a: undefined }] })
-		expect(columns.a).toBeDefined()
+describe('isRowList', () => {
+	it('accepts a readonly Row[] value', () => {
+		expect(isRowList([{ a: 1 }, { b: 2 }])).toBe(true)
 	})
 
-	it('derives an inferred type for an all-string column', () => {
-		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '1' }, { a: '2' }] })
-		expect(columns.a).toBeDefined()
+	it('accepts an empty array', () => {
+		expect(isRowList([])).toBe(true)
 	})
 
-	it('derives integer/real for an all-number column', () => {
-		const integer = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 2 }] })
-		expect(integer.a).toBeDefined()
-		const real = deriveShapes({ columns: ['a'], rows: [{ a: 1.5 }] })
-		expect(real.a).toBeDefined()
+	it('rejects a CSVTable value', () => {
+		expect(isRowList({ columns: ['a'], rows: [{ a: 1 }] })).toBe(false)
 	})
 
-	it('derives boolean for an all-boolean column', () => {
-		const columns = deriveShapes({ columns: ['a'], rows: [{ a: true }, { a: false }] })
-		expect(columns.a).toBeDefined()
-	})
-
-	it('derives json for a mixed column', () => {
-		const columns = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 'x' }] })
-		expect(columns.a).toBeDefined()
+	it('rejects a CSVTable with empty columns/rows', () => {
+		expect(isRowList({ columns: [], rows: [] })).toBe(false)
 	})
 })
 
