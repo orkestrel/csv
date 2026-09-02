@@ -1,16 +1,19 @@
 import type { ColumnType, Row } from './types.js'
 import { BOOLEAN_FALSE, BOOLEAN_TRUE, INTEGER_PATTERN, REAL_PATTERN } from './constants.js'
-import { coerceBoolean, coerceInteger, coerceReal } from './helpers.js'
+import { parseBoolean, parseInteger, parseReal } from './parsers.js'
 
 // The value inferers: everything that reads raw cell text and decides what
 // type it carries. `inferColumnType` rules one column, `coerceInferred`
 // applies that ruling to one cell, and `inferRows` composes both over a whole
-// built row set. They sit above `helpers.ts` (whose flat coercers they call)
-// and below `parsers.ts` and `shapers.ts` (which consume them), so this file
-// imports neither of those.
+// built row set.
+//
+// Dependency direction: this file consumes the flat cell coercers
+// `parsers.ts` owns, and `parseCSV` consumes `inferRows` from here, so the two
+// files import each other. Both edges resolve at call time inside a function
+// body, never at module initialization.
 
 /**
- * Conservatively infer a whole column's {@link ColumnType} from its raw
+ * Infers a whole column's {@link ColumnType} conservatively from its raw
  * string values - never `'json'` or `'blob'` (those require an explicit
  * {@link Columns} declaration). Empty-string cells are ignored entirely (they
  * neither confirm nor demote a type); a column with no non-empty cells is
@@ -53,25 +56,25 @@ export function inferColumnType(values: readonly string[]): ColumnType {
 }
 
 /**
- * Coerce one string cell to `type`'s typed representation - the exhaustive
+ * Coerces one string cell to `type`'s typed representation - the exhaustive
  * per-cell dispatch {@link inferRows} applies once a column's type is known.
  *
  * @param value - The raw cell text
  * @param type - The column's inferred {@link ColumnType} (never `'json'` /
  * `'blob'` - those are never inferred, and pass through unchanged like
  * `'text'`)
- * @returns The typed value, via {@link coerceInteger} / {@link coerceReal} /
- * {@link coerceBoolean}; `value` unchanged for `'text'` (or the unreachable
+ * @returns The typed value, via {@link parseInteger} / {@link parseReal} /
+ * {@link parseBoolean}; `value` unchanged for `'text'` (or the unreachable
  * `'json'` / `'blob'`)
  */
 export function coerceInferred(value: string, type: ColumnType): unknown {
 	switch (type) {
 		case 'integer':
-			return coerceInteger(value)
+			return parseInteger(value)
 		case 'real':
-			return coerceReal(value)
+			return parseReal(value)
 		case 'boolean':
-			return coerceBoolean(value)
+			return parseBoolean(value)
 		case 'text':
 		case 'json':
 		case 'blob':
@@ -80,7 +83,7 @@ export function coerceInferred(value: string, type: ColumnType): unknown {
 }
 
 /**
- * Apply whole-column type inference to a built row set - per column, infers
+ * Applies whole-column type inference to a built row set - per column, infers
  * its {@link ColumnType} from its string cells, then coerces every cell of
  * that type via {@link coerceInferred}.
  *

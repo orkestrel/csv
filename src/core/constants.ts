@@ -7,15 +7,18 @@ import type { ParseOptions, RenderOptions } from './types.js'
 export const BOM = '﻿'
 
 /**
- * The resolved default {@link ParseOptions} - what `parseCSV` uses for any
- * option left unspecified.
+ * The resolved default {@link ParseOptions} (everything but `comment`, which
+ * has no default) - what `parseCSV` uses for any option left unspecified.
+ *
+ * @remarks
+ * An absent `comment` is what leaves comment handling off, so this table
+ * declares no `comment` member: see {@link ResolvedParseOptions}.
  */
-export const DEFAULT_PARSE_OPTIONS: Required<ParseOptions> = Object.freeze({
+export const DEFAULT_PARSE_OPTIONS: Required<Omit<ParseOptions, 'comment'>> = Object.freeze({
 	delimiter: ',',
 	quote: '"',
 	escape: 'double',
 	header: true,
-	comment: false,
 	blanks: 'keep',
 	trim: false,
 	ragged: 'collect',

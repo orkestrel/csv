@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
 	MAX_ERRORS,
 	buildRow,
-	coerceBoolean,
-	coerceInteger,
-	coerceReal,
 	deriveHeader,
 	isCSVError,
+	parseBoolean,
 	parseCSV,
+	parseInteger,
+	parseReal,
 	readRecords,
 	resolveParseOptions,
 	scanBreak,
@@ -52,8 +52,8 @@ describe('scanBreak', () => {
 })
 
 describe('scanComment', () => {
-	it('returns undefined when comment is disabled', () => {
-		expect(scanComment('#hi\na', START, resolveParseOptions({ comment: false }))).toBeUndefined()
+	it('returns undefined when no comment marker is configured', () => {
+		expect(scanComment('#hi\na', START, resolveParseOptions())).toBeUndefined()
 	})
 
 	it('returns undefined when the text does not start with the comment marker', () => {
@@ -479,51 +479,51 @@ describe('buildRow', () => {
 	})
 })
 
-describe('coerceInteger', () => {
+describe('parseInteger', () => {
 	it('accepts a canonical integer', () => {
-		expect(coerceInteger('42')).toBe(42)
-		expect(coerceInteger('-7')).toBe(-7)
-		expect(coerceInteger('0')).toBe(0)
+		expect(parseInteger('42')).toBe(42)
+		expect(parseInteger('-7')).toBe(-7)
+		expect(parseInteger('0')).toBe(0)
 	})
 
 	it('rejects leading zeros, decimals, and non-numeric text', () => {
-		expect(coerceInteger('007')).toBeUndefined()
-		expect(coerceInteger('3.14')).toBeUndefined()
-		expect(coerceInteger('abc')).toBeUndefined()
+		expect(parseInteger('007')).toBeUndefined()
+		expect(parseInteger('3.14')).toBeUndefined()
+		expect(parseInteger('abc')).toBeUndefined()
 	})
 
 	it('rejects an out-of-safe-range magnitude', () => {
-		expect(coerceInteger('9999999999999999999')).toBeUndefined()
-		expect(coerceInteger(String(Number.MAX_SAFE_INTEGER))).toBe(Number.MAX_SAFE_INTEGER)
+		expect(parseInteger('9999999999999999999')).toBeUndefined()
+		expect(parseInteger(String(Number.MAX_SAFE_INTEGER))).toBe(Number.MAX_SAFE_INTEGER)
 	})
 })
 
-describe('coerceReal', () => {
+describe('parseReal', () => {
 	it('accepts a canonical integer or decimal', () => {
-		expect(coerceReal('42')).toBe(42)
-		expect(coerceReal('3.14')).toBe(3.14)
-		expect(coerceReal('-0.5')).toBe(-0.5)
+		expect(parseReal('42')).toBe(42)
+		expect(parseReal('3.14')).toBe(3.14)
+		expect(parseReal('-0.5')).toBe(-0.5)
 	})
 
 	it('rejects an out-of-safe-range integer part', () => {
-		expect(coerceReal('9999999999999999999')).toBeUndefined()
+		expect(parseReal('9999999999999999999')).toBeUndefined()
 	})
 
 	it('rejects non-canonical text', () => {
-		expect(coerceReal('abc')).toBeUndefined()
-		expect(coerceReal('1e10')).toBeUndefined()
+		expect(parseReal('abc')).toBeUndefined()
+		expect(parseReal('1e10')).toBeUndefined()
 	})
 })
 
-describe('coerceBoolean', () => {
+describe('parseBoolean', () => {
 	it('accepts the exact canonical forms', () => {
-		expect(coerceBoolean('true')).toBe(true)
-		expect(coerceBoolean('false')).toBe(false)
+		expect(parseBoolean('true')).toBe(true)
+		expect(parseBoolean('false')).toBe(false)
 	})
 
 	it('rejects anything else', () => {
-		expect(coerceBoolean('True')).toBeUndefined()
-		expect(coerceBoolean('1')).toBeUndefined()
+		expect(parseBoolean('True')).toBeUndefined()
+		expect(parseBoolean('1')).toBeUndefined()
 	})
 })
 

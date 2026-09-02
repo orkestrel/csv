@@ -1,13 +1,26 @@
 import type { CSVParseResult, ParseOptions, Row } from './types.js'
-import { MAX_ERRORS } from './constants.js'
+import {
+	BOOLEAN_FALSE,
+	BOOLEAN_TRUE,
+	INTEGER_PATTERN,
+	MAX_ERRORS,
+	REAL_PATTERN,
+} from './constants.js'
 import { CSVError } from './errors.js'
 import { buildRow, deriveHeader, readRecords, resolveParseOptions } from './helpers.js'
 import { inferRows } from './inferers.js'
 
-// The table-building spine. `parseCSV` composes the tokenizer and
-// table-builder leaves that live in `helpers.ts` - the kind file for a pure
-// reusable leaf - into the one public parse entry point. This file is the
-// coercer kind file, whose exported functions all carry the `parse` prefix.
+// The coercer kind file, whose exported functions all carry the `parse`
+// prefix: the table-building spine `parseCSV`, which composes the tokenizer
+// and table-builder leaves that live in `helpers.ts`, and the flat cell
+// coercers every inferred column value passes through.
+//
+// Dependency direction: `helpers.ts` is the leaf beneath this file and never
+// imports back. `inferers.ts` sits between the two - it consumes the flat
+// coercers below and `parseCSV` consumes `inferRows` above, so the two files
+// import each other. Both edges resolve at call time inside a function body,
+// never at module initialization, so neither module reads a binding the other
+// has not yet defined.
 
 /**
  * Parses `input` into a typed {@link CSVParseResult} - header mapping,
@@ -91,4 +104,81 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 	const finalRows = resolved.infer ? inferRows(rows, header.columns) : rows
 
 	return { table: { columns: header.columns, rows: finalRows }, errors }
+}
+
+/**
+ * Parses a raw cell string into a canonical integer - `undefined` for anything
+ * else (leading zeros, decimals, out-of-safe-range magnitude, non-numeric
+ * text).
+ *
+ * @remarks
+ * Stricter than `@orkestrel/contract`'s `parseInteger`, which returns `7` for
+ * `'007'` and `10000000000000000000` for `'9999999999999999999'`. A CSV cell
+ * carrying either is data a spreadsheet wrote verbatim, so this coercer
+ * refuses it and the column stays text.
+ *
+ * @param value - The raw cell text
+ * @returns The integer, or `undefined` when `value` is not a canonical
+ * integer within `Number.isSafeInteger` range
+ *
+ * @example
+ * ```ts
+ * parseInteger('42')  // 42
+ * parseInteger('007') // undefined
+ * ```
+ */
+export function parseInteger(value: string): number | undefined {
+	if (!INTEGER_PATTERN.test(value)) return undefined
+	const number = Number(value)
+	return Number.isSafeInteger(number) ? number : undefined
+}
+
+/**
+ * Parses a raw cell string into a canonical decimal (or integer) - `undefined`
+ * for anything else.
+ *
+ * @remarks
+ * `@orkestrel/contract` exports no `parseReal`; its nearest equivalent is
+ * `parseNumber`, which returns `7.5` for `'007.5'`. This coercer refuses a
+ * leading zero and an unsafe integer part, so a canonical CSV cell is the only
+ * text it accepts.
+ *
+ * @param value - The raw cell text
+ * @returns The number, or `undefined` when `value` is not a canonical
+ * integer/decimal, or its integer part is out of `Number.isSafeInteger` range
+ *
+ * @example
+ * ```ts
+ * parseReal('3.14') // 3.14
+ * parseReal('42')   // 42
+ * ```
+ */
+export function parseReal(value: string): number | undefined {
+	if (INTEGER_PATTERN.test(value)) return parseInteger(value)
+	return REAL_PATTERN.test(value) ? Number(value) : undefined
+}
+
+/**
+ * Parses a raw cell string into a strict boolean - `undefined` for anything
+ * other than the exact canonical forms.
+ *
+ * @remarks
+ * Stricter than `@orkestrel/contract`'s `parseBoolean`, which also accepts
+ * `'1'` and `'0'`. A CSV column of `1` and `0` is numeric data, so this
+ * coercer leaves it to {@link parseInteger}.
+ *
+ * @param value - The raw cell text
+ * @returns `true` for {@link BOOLEAN_TRUE}, `false` for {@link BOOLEAN_FALSE},
+ * `undefined` otherwise
+ *
+ * @example
+ * ```ts
+ * parseBoolean('true')  // true
+ * parseBoolean('True')  // undefined
+ * ```
+ */
+export function parseBoolean(value: string): boolean | undefined {
+	if (value === BOOLEAN_TRUE) return true
+	if (value === BOOLEAN_FALSE) return false
+	return undefined
 }

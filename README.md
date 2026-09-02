@@ -45,7 +45,7 @@ renderCSV(csv.table)
 ```
 
 `renderCSV(tableOrRows, options)` writes a `CSVTable` (or a plain row list)
-back to CSV text; `renderTSV(...)` is a thin delegate that forces
+back to CSV text; tab-separated output is the same call with
 `delimiter: '\t'`. Dialect is controlled through options on both sides —
 `delimiter` / `quote` / `escape` / `header` / `trim` / `ragged` / `infer` /
 `limit` / `strict` on parse, `quotes` / `blank` / `sanitize` / `bom` /

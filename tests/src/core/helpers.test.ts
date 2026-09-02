@@ -7,7 +7,6 @@ import {
 	quoteNonnumeric,
 	renderCSV,
 	renderRecord,
-	renderTSV,
 	resolveParseOptions,
 	resolveRenderOptions,
 	sanitizeField,
@@ -34,10 +33,9 @@ function captureError(fn: () => void): unknown {
 	}
 }
 
-// The CSV core's pure helper surface — option resolution, type inference,
-// cell coercion, header disambiguation, formula-injection guarding, quoting,
-// and the CSV/TSV renderers. Mirrors every exported helpers.ts symbol
-// (AGENTS §16).
+// The CSV core's pure helper surface — option resolution, header
+// disambiguation, formula-injection guarding, quoting, and the CSV renderer.
+// Mirrors every exported helpers.ts symbol (AGENTS §16).
 
 describe('resolveParseOptions', () => {
 	it('merges defaults with the given options', () => {
@@ -419,16 +417,9 @@ describe('renderCSV', () => {
 		const csv = renderCSV([{ a: circular }], { header: false })
 		expect(csv).toBe('')
 	})
-})
 
-describe('renderTSV', () => {
-	it('forces tab delimiters', () => {
-		const tsv = renderTSV({ columns: ['a', 'b'], rows: [{ a: 1, b: 2 }] })
-		expect(tsv).toBe('a\tb\r\n1\t2')
-	})
-
-	it('overrides an explicit delimiter option with a tab', () => {
-		const tsv = renderTSV({ columns: ['a', 'b'], rows: [{ a: 1, b: 2 }] }, { delimiter: ';' })
+	it('renders tab-separated text for a tab delimiter', () => {
+		const tsv = renderCSV({ columns: ['a', 'b'], rows: [{ a: 1, b: 2 }] }, { delimiter: '\t' })
 		expect(tsv).toBe('a\tb\r\n1\t2')
 	})
 })

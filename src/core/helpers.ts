@@ -9,21 +9,18 @@ import type {
 	RecordScan,
 	RecordsResult,
 	RenderOptions,
+	ResolvedParseOptions,
 	ResolvedRenderOptions,
 	Row,
 	RowResult,
 } from './types.js'
 import {
 	BOM,
-	BOOLEAN_FALSE,
-	BOOLEAN_TRUE,
 	DEFAULT_PARSE_OPTIONS,
 	DEFAULT_RENDER_OPTIONS,
-	INTEGER_PATTERN,
 	MAX_ERRORS,
 	NUMERIC_PATTERN,
 	POSITIONAL_COLUMN_PREFIX,
-	REAL_PATTERN,
 	SANITIZE_ESCAPE,
 	SANITIZE_PREFIXES,
 	SUFFIX_SEPARATOR,
@@ -36,9 +33,8 @@ import { CSVError } from './errors.js'
 // which throw on a programmer error per AGENTS §12) never throwing.
 //
 // Dependency direction: this file is the bottom of the module graph. It
-// imports types, constants, and errors, and nothing else - `inferers.ts`,
-// `parsers.ts`, `shapers.ts`, and `CSV.ts` all import from it, so an import
-// back from any of them would be a cycle.
+// imports types, constants, and errors, and nothing else - `parsers.ts` is
+// its only consumer, so an import back from there would be a cycle.
 
 /**
  * Validate a delimiter / quote pair shared by both {@link resolveParseOptions}
@@ -73,7 +69,7 @@ export function assertValidSeparators(delimiter: string, quote: string): void {
  * parse configuration.
  *
  * @param options - The caller's partial {@link ParseOptions}
- * @returns The resolved options, every member defaulted
+ * @returns The resolved options (`comment` stays optional - it has no default)
  * @throws {CSVError} `INVALID_OPTION` when `delimiter` / `quote` are invalid
  * (see {@link assertValidSeparators}), `comment` is an empty string, or
  * `limit` is negative or not a finite integer
@@ -83,7 +79,7 @@ export function assertValidSeparators(delimiter: string, quote: string): void {
  * resolveParseOptions({ delimiter: ';' }).delimiter // ';'
  * ```
  */
-export function resolveParseOptions(options?: ParseOptions): Required<ParseOptions> {
+export function resolveParseOptions(options?: ParseOptions): ResolvedParseOptions {
 	const resolved = { ...DEFAULT_PARSE_OPTIONS, ...options }
 	assertValidSeparators(resolved.delimiter, resolved.quote)
 	if (resolved.comment === '')
@@ -436,29 +432,6 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
 	return resolved.bom ? `${BOM}${body}` : body
 }
 
-/**
- * Render a {@link CSVTable} (or a plain row list) to tab-separated text - a
- * thin `renderCSV` delegate forcing `delimiter: '\t'`.
- *
- * @remarks
- * An explicit `options.delimiter` passed by the caller is OVERRIDDEN - TSV
- * always uses tabs.
- *
- * @param input - A {@link CSVTable}, or a plain readonly row list
- * @param options - Render options (see {@link resolveRenderOptions}); `delimiter` is ignored
- * @returns The rendered TSV text
- * @throws {CSVError} `INVALID_OPTION` - see {@link resolveRenderOptions}
- *
- * @example
- * ```ts
- * renderTSV({ columns: ['a', 'b'], rows: [{ a: 1, b: 2 }] })
- * // 'a\tb\r\n1\t2'
- * ```
- */
-export function renderTSV(input: CSVTable | readonly Row[], options?: RenderOptions): string {
-	return renderCSV(input, { ...options, delimiter: '\t' })
-}
-
 // ---------------------------------------------------------------------------
 // Tokenizer and table-builder leaves.
 //
@@ -528,7 +501,7 @@ export function scanBreak(source: string, position: Position): Position | undefi
  * @param position - The position to test
  * @param options - The resolved parse options
  * @returns The position after the whole comment line; `undefined` when
- * `options.comment` is `false` or the text at `position` does not start with it
+ * `options.comment` is absent or the text at `position` does not start with it
  *
  * @example
  * ```ts
@@ -539,9 +512,9 @@ export function scanBreak(source: string, position: Position): Position | undefi
 export function scanComment(
 	source: string,
 	position: Position,
-	options: Required<ParseOptions>,
+	options: ResolvedParseOptions,
 ): Position | undefined {
-	if (options.comment === false) return undefined
+	if (options.comment === undefined) return undefined
 	if (!source.startsWith(options.comment, position.offset)) return undefined
 	let cursor = position
 	while (cursor.offset < source.length) {
@@ -575,7 +548,7 @@ export function scanComment(
 export function scanUnquoted(
 	source: string,
 	position: Position,
-	options: Required<ParseOptions>,
+	options: ResolvedParseOptions,
 ): FieldScan {
 	let cursor = position
 	let value = ''
@@ -620,7 +593,7 @@ export function scanUnquoted(
 export function scanQuoted(
 	source: string,
 	position: Position,
-	options: Required<ParseOptions>,
+	options: ResolvedParseOptions,
 ): FieldScan {
 	const open = position
 	let cursor = advancePosition(position) // consume the opening quote
@@ -699,7 +672,7 @@ export function scanQuoted(
 export function scanField(
 	source: string,
 	position: Position,
-	options: Required<ParseOptions>,
+	options: ResolvedParseOptions,
 ): FieldScan {
 	return source.charAt(position.offset) === options.quote
 		? scanQuoted(source, position, options)
@@ -725,7 +698,7 @@ export function scanField(
 export function scanRecord(
 	source: string,
 	position: Position,
-	options: Required<ParseOptions>,
+	options: ResolvedParseOptions,
 ): RecordScan {
 	const fields: RawField[] = []
 	const errors: CSVError[] = []
@@ -845,7 +818,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
  */
 export function deriveHeader(
 	records: readonly RawRecord[],
-	options: Required<ParseOptions>,
+	options: ResolvedParseOptions,
 ): HeaderResult {
 	if (!options.header) {
 		const width = records.reduce((max, record) => Math.max(max, record.fields.length), 0)
@@ -904,7 +877,7 @@ export function deriveHeader(
 export function buildRow(
 	record: RawRecord,
 	columns: readonly string[],
-	options: Required<ParseOptions>,
+	options: ResolvedParseOptions,
 ): RowResult {
 	const width = columns.length
 	const fields = record.fields
@@ -936,82 +909,4 @@ export function buildRow(
 		dropped,
 	})
 	return options.ragged === 'error' ? { error } : { row, error }
-}
-
-/**
- * Coerce a raw cell string to a canonical integer - `undefined` for anything
- * else (leading zeros, decimals, out-of-safe-range magnitude, non-numeric text).
- *
- * @remarks
- * Named `coerce*` (not `parse*`) because this is a canonical-form CSV cell
- * coercer whose semantics deliberately differ from `@orkestrel/contract`'s
- * same-named `parseInteger` (leading-zero and unsafe-magnitude rejection) -
- * the rename keeps the two packages' surfaces from being confused.
- *
- * @param value - The raw cell text
- * @returns The integer, or `undefined` when `value` is not a canonical
- * integer within `Number.isSafeInteger` range
- *
- * @example
- * ```ts
- * coerceInteger('42')  // 42
- * coerceInteger('007') // undefined
- * ```
- */
-export function coerceInteger(value: string): number | undefined {
-	if (!INTEGER_PATTERN.test(value)) return undefined
-	const number = Number(value)
-	return Number.isSafeInteger(number) ? number : undefined
-}
-
-/**
- * Coerce a raw cell string to a canonical decimal (or integer) - `undefined`
- * for anything else.
- *
- * @remarks
- * Named `coerce*` (not `parse*`) because this is a canonical-form CSV cell
- * coercer whose semantics deliberately differ from `@orkestrel/contract`'s
- * nearest equivalent, `parseNumber` (leading-zero and unsafe-magnitude
- * rejection) - the rename keeps the two packages' surfaces from being
- * confused. `@orkestrel/contract` exports no `parseReal`.
- *
- * @param value - The raw cell text
- * @returns The number, or `undefined` when `value` is not a canonical
- * integer/decimal, or its integer part is out of `Number.isSafeInteger` range
- *
- * @example
- * ```ts
- * coerceReal('3.14') // 3.14
- * coerceReal('42')   // 42
- * ```
- */
-export function coerceReal(value: string): number | undefined {
-	if (INTEGER_PATTERN.test(value)) return coerceInteger(value)
-	return REAL_PATTERN.test(value) ? Number(value) : undefined
-}
-
-/**
- * Coerce a raw cell string to a strict boolean - `undefined` for anything
- * other than the exact canonical forms.
- *
- * @remarks
- * Named `coerce*` (not `parse*`) because this is a canonical-form CSV cell
- * coercer whose semantics deliberately differ from `@orkestrel/contract`'s
- * same-named `parseBoolean` (strict `'true'`/`'false'` only, no `'1'`/`'0'`
- * coercion) - the rename keeps the two packages' surfaces from being confused.
- *
- * @param value - The raw cell text
- * @returns `true` for {@link BOOLEAN_TRUE}, `false` for {@link BOOLEAN_FALSE},
- * `undefined` otherwise
- *
- * @example
- * ```ts
- * coerceBoolean('true')  // true
- * coerceBoolean('True')  // undefined
- * ```
- */
-export function coerceBoolean(value: string): boolean | undefined {
-	if (value === BOOLEAN_TRUE) return true
-	if (value === BOOLEAN_FALSE) return false
-	return undefined
 }

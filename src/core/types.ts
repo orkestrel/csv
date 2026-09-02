@@ -183,7 +183,7 @@ export type Columns = Readonly<Record<string, ContractShape>>
  * `'double'` doubles it (`""`), `'backslash'` prefixes it (`\"`); `header`
  * whether the first record names the columns (`true`) or is itself data
  * (`false`, columns become `column1..columnN`); `comment` a leading-character
- * marking a line as a comment to skip (`false` disables comment handling);
+ * marking a line as a comment to skip (absent, no line is a comment);
  * `blanks` whether a blank line becomes an empty row (`'keep'`) or is dropped
  * (`'skip'`) - a line of only whitespace is never blank, so `trim` does not
  * change what `blanks` skips; `trim` whether leading/trailing whitespace is stripped from
@@ -201,7 +201,7 @@ export interface ParseOptions {
 	readonly quote?: string
 	readonly escape?: EscapeStyle
 	readonly header?: boolean
-	readonly comment?: string | false
+	readonly comment?: string
 	readonly blanks?: BlankPolicy
 	readonly trim?: boolean
 	readonly ragged?: RaggedPolicy
@@ -209,6 +209,18 @@ export interface ParseOptions {
 	readonly limit?: number
 	readonly strict?: boolean
 }
+
+/**
+ * The fully-resolved parse configuration every tokenizer and table-building
+ * helper takes - {@link ParseOptions} with every member defaulted except
+ * `comment`, which has no default and stays optional.
+ *
+ * @remarks
+ * An absent `comment` is what turns comment handling off, so
+ * {@link DEFAULT_PARSE_OPTIONS} declares no `comment` member at all.
+ */
+export type ResolvedParseOptions = Required<Omit<ParseOptions, 'comment'>> &
+	Pick<ParseOptions, 'comment'>
 
 /**
  * Options for rendering a {@link CSVTable} (or row list) back to CSV text.
