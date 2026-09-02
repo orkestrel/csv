@@ -37,7 +37,7 @@ import { CSVError } from './errors.js'
 // its only consumer, so an import back from there would be a cycle.
 
 /**
- * Validate a delimiter / quote pair shared by both {@link resolveParseOptions}
+ * Validates a delimiter / quote pair shared by both {@link resolveParseOptions}
  * and {@link resolveRenderOptions} - each must be exactly one character, they
  * must differ, and neither may be CR, LF, or the BOM character.
  *
@@ -65,7 +65,7 @@ export function assertValidSeparators(delimiter: string, quote: string): void {
 }
 
 /**
- * Merge `options` over {@link DEFAULT_PARSE_OPTIONS} into a fully-resolved
+ * Merges `options` over {@link DEFAULT_PARSE_OPTIONS} into a fully-resolved
  * parse configuration.
  *
  * @param options - The caller's partial {@link ParseOptions}
@@ -90,7 +90,7 @@ export function resolveParseOptions(options?: ParseOptions): ResolvedParseOption
 }
 
 /**
- * Merge `options` over {@link DEFAULT_RENDER_OPTIONS} into a fully-resolved
+ * Merges `options` over {@link DEFAULT_RENDER_OPTIONS} into a fully-resolved
  * render configuration.
  *
  * @param options - The caller's partial {@link RenderOptions}
@@ -113,7 +113,7 @@ export function resolveRenderOptions(options?: RenderOptions): ResolvedRenderOpt
 }
 
 /**
- * Disambiguate a single column name against the names already taken - the
+ * Disambiguates a single column name against the names already taken - the
  * collision leaf {@link uniqueColumns} composes over an entire header.
  *
  * @param name - The candidate name
@@ -139,7 +139,7 @@ export function uniqueName(name: string, taken: ReadonlySet<string>): string {
 }
 
 /**
- * Deterministically disambiguate a header's column names - an empty (or
+ * Disambiguates a header's column names deterministically - an empty (or
  * whitespace-only) name becomes positional, and a name that repeats an
  * earlier kept name is suffixed `_2`, `_3`, … until unique.
  *
@@ -165,7 +165,7 @@ export function uniqueColumns(names: readonly string[]): readonly string[] {
 }
 
 /**
- * Guard a field against CSV/spreadsheet formula injection (the OWASP
+ * Guards a field against CSV/spreadsheet formula injection (the OWASP
  * CSV-injection guidance) - a field starting with a formula-triggering
  * character is prefixed with a protective {@link SANITIZE_ESCAPE}.
  *
@@ -189,7 +189,7 @@ export function sanitizeField(field: string): string {
 }
 
 /**
- * Serialize one cell value to its rendered text - the renderer's stringify
+ * Serializes one cell value to its rendered text - the renderer's stringify
  * leaf, applied before sanitize/quote.
  *
  * @param value - The cell value
@@ -218,7 +218,7 @@ export function serializeCell(value: unknown, blank: string): string {
 }
 
 /**
- * Derive a column order from a plain row list - the first-seen union of
+ * Derives a column order from a plain row list - the first-seen union of
  * every row's keys, in encounter order.
  *
  * @param rows - The rows to scan
@@ -238,13 +238,13 @@ export function deriveColumns(rows: readonly Row[]): readonly string[] {
 }
 
 /**
- * The correctness floor every {@link QuoteStyle} policy respects - a field
- * containing the delimiter, the quote character, CR, or LF must ALWAYS be
- * quoted regardless of policy.
+ * Checks `field` against the correctness floor every {@link QuoteStyle}
+ * policy respects - a field containing the delimiter, the quote character,
+ * CR, or LF must ALWAYS be quoted regardless of policy.
  *
  * @param field - The already-sanitized field text
  * @param options - The resolved render options (see {@link resolveRenderOptions})
- * @returns `true` when `field` contains the delimiter, quote, CR, or LF
+ * @returns True if `field` contains the delimiter, quote, CR, or LF; false otherwise
  *
  * @example
  * ```ts
@@ -262,7 +262,7 @@ export function needsQuote(field: string, options: ResolvedRenderOptions): boole
 }
 
 /**
- * Wrap `field` in quotes, escaping per `options.escape` - the shared
+ * Wraps `field` in quotes, escaping per `options.escape` - the shared
  * quote-and-escape step every quoting policy applies once it decides `field`
  * needs quoting; it IS the `'always'` {@link QuoteStyle} as well (every field
  * quoted unconditionally).
@@ -287,7 +287,7 @@ export function wrapQuoted(field: string, options: ResolvedRenderOptions): strin
 }
 
 /**
- * The `'minimal'` {@link QuoteStyle} - quotes a field only when
+ * Implements the `'minimal'` {@link QuoteStyle} - quotes a field only when
  * {@link needsQuote} requires it.
  *
  * @param field - The already-sanitized field text
@@ -305,8 +305,9 @@ export function quoteMinimal(field: string, options: ResolvedRenderOptions): str
 }
 
 /**
- * The `'nonnumeric'` {@link QuoteStyle} - quotes every field whose value is
- * not a plain number (or that {@link needsQuote} requires regardless).
+ * Implements the `'nonnumeric'` {@link QuoteStyle} - quotes every field whose
+ * value is not a plain number (or that {@link needsQuote} requires
+ * regardless).
  *
  * @param field - The already-sanitized field text
  * @param options - The resolved render options
@@ -324,8 +325,8 @@ export function quoteNonnumeric(field: string, options: ResolvedRenderOptions): 
 }
 
 /**
- * Render one row to one delimited line - serialize every column's cell,
- * optionally sanitize it, then apply the given quoting policy.
+ * Renders one row to one delimited line - serializes every column's cell,
+ * optionally sanitizes it, then applies the given quoting policy.
  *
  * @param row - The row to render
  * @param columns - The column order to render, in order
@@ -355,7 +356,7 @@ export function renderRecord(
 }
 
 /**
- * Select the quoting-policy function for a resolved `options.quotes`.
+ * Selects the quoting-policy function for a resolved `options.quotes`.
  *
  * @param quotes - The resolved {@link QuoteStyle}
  * @returns {@link quoteMinimal}, {@link wrapQuoted} (the `'always'` policy),
@@ -380,7 +381,7 @@ export function quoteStyleToPolicy(
 }
 
 /**
- * Narrow a `CSVTable | readonly Row[]` union to its row-list member.
+ * Narrows a `CSVTable | readonly Row[]` union to its row-list member.
  *
  * @remarks
  * `Array.isArray` alone does not narrow a `readonly Row[]` union member (a
@@ -388,14 +389,14 @@ export function quoteStyleToPolicy(
  * narrows reliably in both branches.
  *
  * @param source - A {@link CSVTable}, or a plain readonly row list
- * @returns `true` when `source` is a plain row list
+ * @returns True if `source` is a plain row list; false otherwise
  */
 export function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
 	return Array.isArray(source)
 }
 
 /**
- * Render a {@link CSVTable} (or a plain row list) to CSV text.
+ * Renders a {@link CSVTable} (or a plain row list) to CSV text.
  *
  * @remarks
  * Total: a `JSON.stringify` failure (a circular value) degrades to
@@ -443,7 +444,7 @@ export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOpti
 // ---------------------------------------------------------------------------
 
 /**
- * Advance a {@link Position} by `count` NON-line-break characters.
+ * Advances a {@link Position} by `count` NON-line-break characters.
  *
  * @param position - The starting position
  * @param count - The number of code units to advance (default `1`)
@@ -459,17 +460,17 @@ export function advancePosition(position: Position, count = 1): Position {
 }
 
 /**
- * Whether `char` starts a record separator (CR or LF).
+ * Checks whether `char` starts a record separator (CR or LF).
  *
  * @param char - A single character
- * @returns `true` for `'\r'` or `'\n'`
+ * @returns True if `char` is `'\r'` or `'\n'`; false otherwise
  */
 export function isBreakChar(char: string): boolean {
 	return char === '\r' || char === '\n'
 }
 
 /**
- * Consume exactly one line break (CRLF, bare LF, or bare CR) at `position` -
+ * Consumes exactly one line break (CRLF, bare LF, or bare CR) at `position` -
  * a CRLF pair counts as ONE break.
  *
  * @param source - The source text
@@ -493,7 +494,7 @@ export function scanBreak(source: string, position: Position): Position | undefi
 }
 
 /**
- * Consume a comment line at `position`, when `options.comment` names one
+ * Consumes a comment line at `position`, when `options.comment` names one
  * starting there - through the end of that line INCLUDING its break (or
  * end-of-input).
  *
@@ -526,7 +527,7 @@ export function scanComment(
 }
 
 /**
- * Scan one unquoted field starting at `position` - content runs until the
+ * Scans one unquoted field starting at `position` - content runs until the
  * delimiter, a line break, or end-of-input.
  *
  * @remarks
@@ -566,7 +567,7 @@ export function scanUnquoted(
 }
 
 /**
- * Scan one quoted field starting at `position` - `position` must be AT the
+ * Scans one quoted field starting at `position` - `position` must be AT the
  * opening quote character.
  *
  * @remarks
@@ -661,7 +662,7 @@ export function scanQuoted(
 }
 
 /**
- * Scan one field at `position` - dispatches to {@link scanQuoted} when the
+ * Scans one field at `position` - dispatches to {@link scanQuoted} when the
  * character there is `options.quote`, else {@link scanUnquoted}.
  *
  * @param source - The source text
@@ -680,7 +681,7 @@ export function scanField(
 }
 
 /**
- * Scan one full record at `position` - fields separated by
+ * Scans one full record at `position` - fields separated by
  * `options.delimiter`, ending at a break (consumed via {@link scanBreak}) or
  * end-of-input.
  *
@@ -794,7 +795,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 }
 
 /**
- * Resolve a table's header from its raw records - disambiguates the first
+ * Resolves a table's header from its raw records - disambiguates the first
  * record's names when `options.header` is `true`, or generates positional
  * names sized to the widest record otherwise.
  *
@@ -854,8 +855,8 @@ export function deriveHeader(
 }
 
 /**
- * Build one {@link RawRecord} into one null-prototype {@link Row}, padding or
- * truncating to `columns.length` per `options.ragged`.
+ * Builds one {@link RawRecord} into one null-prototype {@link Row}, padding
+ * or truncating to `columns.length` per `options.ragged`.
  *
  * @remarks
  * `'pad'` pads/truncates silently (no error). `'collect'` pads/truncates AND

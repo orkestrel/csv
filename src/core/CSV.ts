@@ -13,9 +13,9 @@ import { parseCSV } from './parsers.js'
 import { deriveShapes } from './shapers.js'
 
 /**
- * A parsed, queryable CSV document - wraps a typed {@link CSVTable} with the
- * query (`find` / `filter` / `reduce`), rewrite (`map`), streaming, and
- * export operations {@link CSVInterface} declares.
+ * Wraps a typed {@link CSVTable} with the query (`find` / `filter` /
+ * `reduce`), rewrite (`map`), streaming, and export operations
+ * {@link CSVInterface} declares.
  *
  * @remarks
  * - **Construction.** Given a `string`, the constructor runs {@link parseCSV}
@@ -43,17 +43,17 @@ export class CSV implements CSVInterface {
 			typeof input === 'string' ? parseCSV(input, options) : { table: input, errors: [] }
 	}
 
-	/** The stored {@link CSVTable} (columns + rows). */
+	/** Returns the stored {@link CSVTable} (columns + rows). */
 	get table(): CSVTable {
 		return this.#result.table
 	}
 
-	/** The parsed rows, in table order (same as `table.rows`). */
+	/** Returns the parsed rows, in table order (same as `table.rows`). */
 	get rows(): readonly Row[] {
 		return this.#result.table.rows
 	}
 
-	/** Errors collected while parsing (capped at `MAX_ERRORS`). */
+	/** Returns the errors collected while parsing (capped at `MAX_ERRORS`). */
 	get errors(): readonly CSVError[] {
 		return this.#result.errors
 	}
@@ -136,8 +136,8 @@ export class CSV implements CSVInterface {
 	}
 
 	/**
-	 * A web-standard {@link ReadableStream} over the table's rows (source
-	 * order) - a fresh, pull-based source per call.
+	 * Returns a web-standard {@link ReadableStream} over the table's rows
+	 * (source order) - a fresh, pull-based source per call.
 	 *
 	 * @returns A `ReadableStream<Row>` that enqueues one row per `pull`
 	 *

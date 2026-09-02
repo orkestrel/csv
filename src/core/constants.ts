@@ -3,12 +3,13 @@ import type { ParseOptions, RenderOptions } from './types.js'
 // Centralized, frozen data the parser / renderer draw their defaults and
 // canonical-format patterns from (AGENTS §5) - no behavior lives here.
 
-/** The UTF-8 byte-order-mark character, prepended when `RenderOptions.bom` is `true`. */
+/** Names the UTF-8 byte-order-mark character, prepended when `RenderOptions.bom` is `true`. */
 export const BOM = '﻿'
 
 /**
- * The resolved default {@link ParseOptions} (everything but `comment`, which
- * has no default) - what `parseCSV` uses for any option left unspecified.
+ * Holds the resolved default {@link ParseOptions} (everything but `comment`,
+ * which has no default) - what `parseCSV` uses for any option left
+ * unspecified.
  *
  * @remarks
  * An absent `comment` is what leaves comment handling off, so this table
@@ -28,8 +29,9 @@ export const DEFAULT_PARSE_OPTIONS: Required<Omit<ParseOptions, 'comment'>> = Ob
 })
 
 /**
- * The resolved default {@link RenderOptions} (everything but `columns`, which
- * has no default) - what `renderCSV` uses for any option left unspecified.
+ * Holds the resolved default {@link RenderOptions} (everything but `columns`,
+ * which has no default) - what `renderCSV` uses for any option left
+ * unspecified.
  */
 export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = Object.freeze({
 	delimiter: ',',
@@ -44,7 +46,7 @@ export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = 
 })
 
 /**
- * The leading characters the OWASP CSV-injection guard treats as
+ * Lists the leading characters the OWASP CSV-injection guard treats as
  * formula-triggering - a field starting with any of these is prefixed with a
  * protective `'` when `RenderOptions.sanitize` is `true`.
  */
@@ -59,19 +61,20 @@ export const SANITIZE_PREFIXES: ReadonlySet<string> = new Set([
 ])
 
 /**
- * The prefix used to name positional columns (`column1`, `column2`, …) when
+ * Names the prefix used for positional columns (`column1`, `column2`, …) when
  * `ParseOptions.header` is `false`, or a header field is empty - 1-based.
  */
 export const POSITIONAL_COLUMN_PREFIX = 'column'
 
 /**
- * The protective prefix {@link sanitizeField} prepends to a field starting
- * with a formula-triggering character (the OWASP CSV-injection guidance).
+ * Names the protective prefix {@link sanitizeField} prepends to a field
+ * starting with a formula-triggering character (the OWASP CSV-injection
+ * guidance).
  */
 export const SANITIZE_ESCAPE = "'"
 
 /**
- * The separator between a disambiguated column name and its collision
+ * Names the separator between a disambiguated column name and its collision
  * counter (`name` -> `name_2`, `name_3`, …) - see {@link uniqueName}.
  */
 export const SUFFIX_SEPARATOR = '_'
@@ -98,14 +101,14 @@ export const REAL_PATTERN = /^-?(0|[1-9]\d*)(\.\d+)?$/
  */
 export const NUMERIC_PATTERN = /^[+-]?(0|[1-9]\d*)(\.\d+)?$/
 
-/** The canonical serialized form of the boolean `true`. */
+/** Names the canonical serialized form of the boolean `true`. */
 export const BOOLEAN_TRUE = 'true'
 
-/** The canonical serialized form of the boolean `false`. */
+/** Names the canonical serialized form of the boolean `false`. */
 export const BOOLEAN_FALSE = 'false'
 
 /**
- * The maximum number of {@link CSVError}s collected into a parse result -
+ * Sets the maximum number of {@link CSVError}s collected into a parse result -
  * once reached, error collection stops (earlier records already parsed are
  * kept, later malformations are silently no longer recorded).
  */

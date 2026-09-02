@@ -8,8 +8,9 @@ import type { CSVErrorCode } from './types.js'
 // which case it throws immediately.
 
 /**
- * An error surfaced by the CSV layer - either thrown for a programmer error /
- * `strict`-mode parse failure, or collected into a result's `errors` list.
+ * Represents an error surfaced by the CSV layer - either thrown for a
+ * programmer error / `strict`-mode parse failure, or collected into a
+ * result's `errors` list.
  *
  * @remarks
  * Carries a {@link CSVErrorCode} and, for a parse-time malformation, the
@@ -45,10 +46,10 @@ export class CSVError extends Error {
 }
 
 /**
- * Narrow an unknown caught value to a {@link CSVError}.
+ * Narrows an unknown caught value to a {@link CSVError}.
  *
  * @param value - The value to test (typically a `catch` binding)
- * @returns `true` when `value` is a {@link CSVError}
+ * @returns True if `value` is a {@link CSVError}; false otherwise
  *
  * @example
  * ```ts

@@ -4,8 +4,8 @@ import { createContract, objectShape } from '@orkestrel/contract'
 import { CSV } from './CSV.js'
 
 /**
- * Create a working {@link CSVInterface} from a CSV string or an already-parsed
- * {@link CSVTable}.
+ * Creates a working {@link CSVInterface} from a CSV string or an
+ * already-parsed {@link CSVTable}.
  *
  * @remarks
  * Given a `string`, runs the parser to build the {@link CSVTable} - a
@@ -32,7 +32,7 @@ export function createCSV(input: string | CSVTable, options?: ParseOptions): CSV
 }
 
 /**
- * Compile a {@link Columns} map into a {@link ContractInterface} for a
+ * Compiles a {@link Columns} map into a {@link ContractInterface} for a
  * {@link Row} - a guard, coercing parser, JSON Schema, and seeded generator
  * from one shape declaration (AGENTS §14).
  *

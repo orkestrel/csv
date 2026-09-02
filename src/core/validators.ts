@@ -10,7 +10,7 @@ import { arrayOf, isRecord, isString, literalOf, recordOf } from '@orkestrel/con
 // portable ColumnType literal.
 
 /**
- * Determine whether an arbitrary value is a valid {@link CSVTable} - an
+ * Determines whether an arbitrary value is a valid {@link CSVTable} - an
  * array of column names plus an array of {@link Row}s.
  *
  * @remarks
@@ -23,7 +23,7 @@ import { arrayOf, isRecord, isString, literalOf, recordOf } from '@orkestrel/con
  * rejecting arrays, functions, and non-object values.
  *
  * @param value - The value to test
- * @returns `true` when `value` is a well-formed {@link CSVTable}
+ * @returns True if `value` is a well-formed {@link CSVTable}; false otherwise
  *
  * @example
  * ```ts
@@ -39,10 +39,10 @@ export const isCSVTable: Guard<CSVTable> = recordOf({
 })
 
 /**
- * Determine whether a value is a valid {@link ColumnType} literal.
+ * Determines whether a value is a valid {@link ColumnType} literal.
  *
  * @param value - The value to test
- * @returns `true` when `value` is one of the six {@link ColumnType} literals
+ * @returns True if `value` is one of the six {@link ColumnType} literals; false otherwise
  *
  * @example
  * ```ts

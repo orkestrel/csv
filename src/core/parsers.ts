@@ -168,8 +168,8 @@ export function parseReal(value: string): number | undefined {
  * coercer leaves it to {@link parseInteger}.
  *
  * @param value - The raw cell text
- * @returns `true` for {@link BOOLEAN_TRUE}, `false` for {@link BOOLEAN_FALSE},
- * `undefined` otherwise
+ * @returns The matching boolean for {@link BOOLEAN_TRUE} or
+ * {@link BOOLEAN_FALSE}; `undefined` otherwise
  *
  * @example
  * ```ts
