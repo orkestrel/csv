@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+	parseBoolean as contractParseBoolean,
+	parseInteger as contractParseInteger,
+	parseNumber as contractParseNumber,
+} from '@orkestrel/contract'
+import {
 	MAX_ERRORS,
 	buildRow,
 	deriveHeader,
@@ -524,6 +529,25 @@ describe('parseBoolean', () => {
 	it('rejects anything else', () => {
 		expect(parseBoolean('True')).toBeUndefined()
 		expect(parseBoolean('1')).toBeUndefined()
+	})
+})
+
+describe("@orkestrel/contract parsers, compared against this package's own coercers", () => {
+	it('parseInteger("007") reads 7 from @orkestrel/contract, undefined from this package', () => {
+		expect(contractParseInteger('007')).toBe(7)
+		expect(parseInteger('007')).toBeUndefined()
+	})
+
+	it('parseNumber("007.5") reads 7.5 from @orkestrel/contract; this package has no parseNumber, and its parseReal refuses the leading zero', () => {
+		expect(contractParseNumber('007.5')).toBe(7.5)
+		expect(parseReal('007.5')).toBeUndefined()
+	})
+
+	it('parseBoolean("1") and parseBoolean("0") read true/false from @orkestrel/contract, undefined from this package', () => {
+		expect(contractParseBoolean('1')).toBe(true)
+		expect(contractParseBoolean('0')).toBe(false)
+		expect(parseBoolean('1')).toBeUndefined()
+		expect(parseBoolean('0')).toBeUndefined()
 	})
 })
 

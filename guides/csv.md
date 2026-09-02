@@ -84,21 +84,21 @@ collected into a result's `errors` unless `strict` is set.
 Centralized, frozen data the parser/renderer draw their defaults and
 canonical patterns from, from [`constants.ts`](../src/core/constants.ts).
 
-| Constant                   | Kind  | Behavior                                                                                                              |
-| -------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
-| `BOM`                      | const | The UTF-8 byte-order-mark character, prepended when `RenderOptions.bom` is `true`.                                    |
-| `DEFAULT_PARSE_OPTIONS`    | const | The resolved default `ParseOptions` — what `parseCSV` uses for any option left unspecified.                           |
-| `DEFAULT_RENDER_OPTIONS`   | const | The resolved default `RenderOptions` (everything but `columns`) — what `renderCSV` uses for any unspecified option.   |
-| `SANITIZE_PREFIXES`        | const | The leading characters the OWASP CSV-injection guard treats as formula-triggering (`=`, `+`, `-`, `@`, tab, CR, LF).  |
-| `POSITIONAL_COLUMN_PREFIX` | const | `'column'` — the prefix used to name positional columns (`column1`, `column2`, …).                                    |
-| `SANITIZE_ESCAPE`          | const | `"'"` — the protective prefix `sanitizeField` prepends to a field starting with a formula-triggering character.       |
-| `SUFFIX_SEPARATOR`         | const | `'_'` — the separator between a disambiguated column name and its collision counter (`name` → `name_2`, `name_3`, …). |
-| `INTEGER_PATTERN`          | const | Matches a canonical integer only — no leading zeros, no `+` sign, no scientific notation.                             |
-| `REAL_PATTERN`             | const | Matches a canonical decimal only — like `INTEGER_PATTERN` plus an optional `.` fractional part.                       |
-| `NUMERIC_PATTERN`          | const | Like `REAL_PATTERN` but also allowing a leading `+` — what the renderer treats as a plain number.                     |
-| `BOOLEAN_TRUE`             | const | `'true'` — the canonical serialized form of the boolean `true`.                                                       |
-| `BOOLEAN_FALSE`            | const | `'false'` — the canonical serialized form of the boolean `false`.                                                     |
-| `MAX_ERRORS`               | const | `100` — the maximum number of `CSVError`s collected into a parse result.                                              |
+| Constant                   | Kind  | Behavior                                                                                                                                                                                       |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BOM`                      | const | The UTF-8 byte-order-mark character, prepended when `RenderOptions.bom` is `true`.                                                                                                             |
+| `DEFAULT_PARSE_OPTIONS`    | const | The resolved default `ParseOptions` for every option except `comment`, which has no default because its absence is the off state — what `parseCSV` uses for any other option left unspecified. |
+| `DEFAULT_RENDER_OPTIONS`   | const | The resolved default `RenderOptions` (everything but `columns`) — what `renderCSV` uses for any unspecified option.                                                                            |
+| `SANITIZE_PREFIXES`        | const | The leading characters the OWASP CSV-injection guard treats as formula-triggering (`=`, `+`, `-`, `@`, tab, CR, LF).                                                                           |
+| `POSITIONAL_COLUMN_PREFIX` | const | `'column'` — the prefix used to name positional columns (`column1`, `column2`, …).                                                                                                             |
+| `SANITIZE_ESCAPE`          | const | `"'"` — the protective prefix `sanitizeField` prepends to a field starting with a formula-triggering character.                                                                                |
+| `SUFFIX_SEPARATOR`         | const | `'_'` — the separator between a disambiguated column name and its collision counter (`name` → `name_2`, `name_3`, …).                                                                          |
+| `INTEGER_PATTERN`          | const | Matches a canonical integer only — no leading zeros, no `+` sign, no scientific notation.                                                                                                      |
+| `REAL_PATTERN`             | const | Matches a canonical decimal only — like `INTEGER_PATTERN` plus an optional `.` fractional part.                                                                                                |
+| `NUMERIC_PATTERN`          | const | Like `REAL_PATTERN` but also allowing a leading `+` — what the renderer treats as a plain number.                                                                                              |
+| `BOOLEAN_TRUE`             | const | `'true'` — the canonical serialized form of the boolean `true`.                                                                                                                                |
+| `BOOLEAN_FALSE`            | const | `'false'` — the canonical serialized form of the boolean `false`.                                                                                                                              |
+| `MAX_ERRORS`               | const | `100` — the maximum number of `CSVError`s collected into a parse result.                                                                                                                       |
 
 ### Helpers
 

@@ -35,7 +35,9 @@ function captureError(fn: () => void): unknown {
 
 // The CSV core's pure helper surface — option resolution, header
 // disambiguation, formula-injection guarding, quoting, and the CSV renderer.
-// Mirrors every exported helpers.ts symbol (AGENTS §16).
+// Covers every exported helpers.ts symbol except the tokenizer and
+// table-builder leaves (scanBreak through buildRow), whose describes live in
+// parsers.test.ts (AGENTS §16).
 
 describe('resolveParseOptions', () => {
 	it('merges defaults with the given options', () => {
