@@ -92,7 +92,7 @@ table.schema // the compiled JSON Schema describing every column
 
 For the full surface — dialect options, ragged-row handling, inference rules,
 and the export/import interop shape — see
-[`guides/src/csv.md`](guides/src/csv.md).
+[`guides/csv.md`](guides/csv.md).
 
 ## Package
 
