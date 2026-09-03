@@ -1,7 +1,7 @@
 import { isCSVTable, isColumnType } from '@src/core'
 import { describe, expect, it } from 'vitest'
 
-// Every guard here is total (AGENTS section 14): never throws, returns
+// Every guard here is total: never throws, returns
 // `false` for any off-shape input. `isRow`'s own behavior (accepting a plain
 // object literal or a null-prototype object, rejecting null/primitives/
 // arrays/functions) is `@orkestrel/contract`'s `isRecord`, covered in that
@@ -50,7 +50,7 @@ describe('isCSVTable', () => {
 })
 
 describe('isColumnType', () => {
-	it('accepts all six ColumnType literals', () => {
+	it('accepts every ColumnType literal', () => {
 		expect(isColumnType('text')).toBe(true)
 		expect(isColumnType('integer')).toBe(true)
 		expect(isColumnType('real')).toBe(true)

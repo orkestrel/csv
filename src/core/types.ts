@@ -3,9 +3,9 @@ import type { CSVError } from './errors.js'
 
 // The cross-environment CSV surface - a parser + renderer over a plain typed
 // `CSVTable`. Structurally interoperable with `@orkestrel/database` (a table's
-// `Columns` map, its `TableExport` shape) without ever importing that package;
-// this file re-derives the equivalent shapes locally so both packages stay
-// independent and portable. Types are the source of truth (AGENTS §2).
+// `Columns` map, its `TableDefinition` shape) without ever importing that
+// package; this file re-derives the equivalent shapes locally so both packages
+// stay independent and portable. Types are the source of truth.
 
 /** Represents a CSV row - a plain record of column values keyed by column name. */
 export type Row = Record<string, unknown>
@@ -155,16 +155,13 @@ export type EscapeStyle = 'double' | 'backslash'
 /** Names the renderer's quoting policy - which fields get wrapped in quotes. */
 export type QuoteStyle = 'minimal' | 'always' | 'nonnumeric'
 
-/** Names how the parser treats a blank line - kept as an empty row, or skipped entirely. */
-export type BlankPolicy = 'keep' | 'skip'
-
 /** Names how the parser treats a record whose field count does not match the header. */
 export type RaggedPolicy = 'collect' | 'pad' | 'error'
 
 /**
- * Names a portable storage type for a column - mirrors `@orkestrel/database`'s
- * `ColumnType` structurally (never imported) so a CSV column map and a
- * database table schema stay drop-in interchangeable.
+ * Names a portable storage type for a column - the same literal set
+ * `@orkestrel/database` declares as `ColumnStorage` (never imported), so a CSV
+ * column map and a database table schema stay drop-in interchangeable.
  */
 export type ColumnType = 'text' | 'integer' | 'real' | 'boolean' | 'json' | 'blob'
 
@@ -173,10 +170,9 @@ export type ColumnType = 'text' | 'integer' | 'real' | 'boolean' | 'json' | 'blo
  * {@link ContractShape}.
  *
  * @remarks
- * Structurally identical to `@orkestrel/database`'s `Columns` (never
+ * Structurally identical to `@orkestrel/database`'s `ColumnMap` (never
  * imported) - the same shape map can describe a CSV's columns and a
- * database table's, so an {@link export} round-trips through `import`
- * on either package.
+ * database table's.
  */
 export type Columns = Readonly<Record<string, ContractShape>>
 
@@ -190,9 +186,9 @@ export type Columns = Readonly<Record<string, ContractShape>>
  * whether the first record names the columns (`true`) or is itself data
  * (`false`, columns become `column1..columnN`); `comment` a leading-character
  * marking a line as a comment to skip (absent, no line is a comment);
- * `blanks` whether a blank line becomes an empty row (`'keep'`) or is dropped
- * (`'skip'`) - a line of only whitespace is never blank, so `trim` does not
- * change what `blanks` skips; `trim` whether leading/trailing whitespace is stripped from
+ * `blanks` whether a blank line becomes an empty row (`true`) - a line of
+ * only whitespace is never blank, so `trim` does not change what `blanks`
+ * drops; `trim` whether leading/trailing whitespace is stripped from
  * every unquoted field (`false`); `ragged` how a record whose field count
  * differs from the header is handled - padded/truncated to fit with the
  * error collected (`'collect'`), silently padded/truncated (`'pad'`), or
@@ -208,7 +204,7 @@ export interface ParseOptions {
 	readonly escape?: EscapeStyle
 	readonly header?: boolean
 	readonly comment?: string
-	readonly blanks?: BlankPolicy
+	readonly blanks?: boolean
 	readonly trim?: boolean
 	readonly ragged?: RaggedPolicy
 	readonly infer?: boolean
@@ -272,9 +268,10 @@ export type ResolvedRenderOptions = Required<Omit<RenderOptions, 'columns'>> &
  * Represents the options for {@link CSVInterface.export}.
  *
  * @remarks
- * `key` names the export (mirrors `@orkestrel/database`'s `TableExport` unit
- * of exchange); `columns` overrides the exported column shapes, defaulting
- * to the columns the table was parsed/declared with.
+ * `key` names the primary-key column the export is keyed by - one of the
+ * table's own columns, defaulting to the first; `columns` overrides the
+ * exported column shapes, defaulting to the columns the table was parsed or
+ * declared with.
  */
 export interface ExportOptions {
 	readonly key?: string
@@ -287,10 +284,11 @@ export interface ExportOptions {
  * environments.
  *
  * @remarks
- * Structurally mirrors `@orkestrel/database`'s `TableExport` (never
- * imported) member-for-member - `key` a name, `columns` the source column
- * map, `schema` the equivalent JSON Schema - so a CSV export re-imports
- * losslessly as a database table (and vice versa).
+ * `@orkestrel/database` declares `TableDefinition { primary, columns,
+ * schema }`. This package's {@link Columns} map is structurally identical to
+ * that package's `ColumnMap`, and `schema` is the same JSON Schema. This
+ * package names the key column `key` where that package names it `primary`.
+ * Neither package imports the other.
  */
 export interface TableExport {
 	readonly key: string

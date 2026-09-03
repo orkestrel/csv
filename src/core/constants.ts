@@ -1,7 +1,7 @@
 import type { ParseOptions, RenderOptions } from './types.js'
 
 // Centralized, frozen data the parser / renderer draw their defaults and
-// canonical-format patterns from (AGENTS §5) - no behavior lives here.
+// canonical-format patterns from. No behavior lives here.
 
 /** Names the UTF-8 byte-order-mark character, prepended when `RenderOptions.bom` is `true`. */
 export const BOM = '﻿'
@@ -20,7 +20,7 @@ export const DEFAULT_PARSE_OPTIONS: Required<Omit<ParseOptions, 'comment'>> = Ob
 	quote: '"',
 	escape: 'double',
 	header: true,
-	blanks: 'keep',
+	blanks: true,
 	trim: false,
 	ragged: 'collect',
 	infer: false,

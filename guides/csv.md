@@ -1,10 +1,10 @@
 # CSV
 
-> A zero-dependency, types-first RFC 4180 CSV parser and renderer — a
-> hand-written, single-pass tokenizer that turns CSV text into a typed
-> `CSVTable`, and a stateful `CSV` workspace that wraps that table with
-> query, rewrite, streaming, and export operations. Source:
-> [`src/core`](../src/core). Surfaced through the `@src/core` barrel.
+> A types-first RFC 4180 CSV parser and renderer — a hand-written,
+> single-pass tokenizer that turns CSV text into a typed `CSVTable`, and a
+> stateful `CSV` workspace that wraps that table with query, rewrite,
+> streaming, and export operations. Source: [`src/core`](../src/core).
+> Surfaced through the `@src/core` barrel.
 
 CSV here is: parse once into a typed `CSVTable` (columns + rows), then treat
 every read as a projection of it. `parseCSV` runs a tokenizer phase
@@ -55,24 +55,23 @@ The full parse/render/export shape, from [`types.ts`](../src/core/types.ts).
 | `CSVParseResult`        | interface | `{ table: CSVTable, errors: readonly CSVError[] }` — a full parse's result.                                                                                                                        |
 | `EscapeStyle`           | type      | `'double' \| 'backslash'` — how an embedded quote is escaped inside a quoted field.                                                                                                                |
 | `QuoteStyle`            | type      | `'minimal' \| 'always' \| 'nonnumeric'` — the renderer's quoting policy.                                                                                                                           |
-| `BlankPolicy`           | type      | `'keep' \| 'skip'` — how the parser treats a blank line.                                                                                                                                           |
 | `RaggedPolicy`          | type      | `'collect' \| 'pad' \| 'error'` — how the parser treats a record whose field count does not match the header.                                                                                      |
-| `ColumnType`            | type      | `'text' \| 'integer' \| 'real' \| 'boolean' \| 'json' \| 'blob'` — a portable column storage type, mirroring `@orkestrel/database`'s `ColumnType` structurally.                                    |
-| `Columns`               | type      | `Readonly<Record<string, ContractShape>>` — a table's declared columns, mirroring `@orkestrel/database`'s `Columns` structurally.                                                                  |
+| `ColumnType`            | type      | `'text' \| 'integer' \| 'real' \| 'boolean' \| 'json' \| 'blob'` — a portable column storage type; the same literal set `@orkestrel/database` declares as `ColumnStorage`.                         |
+| `Columns`               | type      | `Readonly<Record<string, ContractShape>>` — a table's declared columns, structurally identical to `@orkestrel/database`'s `ColumnMap`.                                                             |
 | `ParseOptions`          | interface | `{ delimiter?, quote?, escape?, header?, comment?, blanks?, trim?, ragged?, infer?, limit?, strict? }` — options for parsing CSV text.                                                             |
 | `ResolvedParseOptions`  | type      | `Required<Omit<ParseOptions, 'comment'>> & Pick<ParseOptions, 'comment'>` — the fully-resolved parse configuration every tokenizer and table-building helper takes; `comment` has no default.      |
 | `RenderOptions`         | interface | `{ delimiter?, quote?, escape?, newline?, header?, columns?, quotes?, blank?, sanitize?, bom? }` — options for rendering a table back to text.                                                     |
 | `ResolvedRenderOptions` | type      | `Required<Omit<RenderOptions, 'columns'>> & Pick<RenderOptions, 'columns'>` — the fully-resolved render configuration every quoting/rendering helper takes as its `options` parameter.             |
 | `ExportOptions`         | interface | `{ key?: string, columns?: Columns }` — options for `CSVInterface.export`.                                                                                                                         |
-| `TableExport`           | interface | `{ key: string, columns: Columns, schema: JSONSchema }` — a portable schema export, mirroring `@orkestrel/database`'s `TableExport` member-for-member.                                             |
+| `TableExport`           | interface | `{ key: string, columns: Columns, schema: JSONSchema }` — a portable schema export; `columns` matches `@orkestrel/database`'s `ColumnMap` structurally.                                            |
 | `CSVErrorCode`          | type      | `'UNTERMINATED_QUOTE' \| 'BAD_QUOTE' \| 'RAGGED_ROW' \| 'DUPLICATE_HEADER' \| 'EMPTY_HEADER' \| 'LIMIT_EXCEEDED' \| 'INVALID_OPTION'` — a machine-readable `CSVError` code.                        |
 | `CSVInterface`          | interface | `{ table, rows, errors, find, filter, map, reduce, stream, toJSON, export }` — see [`## Methods`](#methods) below.                                                                                 |
 
 ### Errors
 
-From [`errors.ts`](../src/core/errors.ts). AGENTS §12: an invalid option or
-programmer error always throws a `CSVError`; a parse-time malformation is
-collected into a result's `errors` unless `strict` is set.
+From [`errors.ts`](../src/core/errors.ts). An invalid option or programmer
+error always throws a `CSVError`; a parse-time malformation is collected
+into a result's `errors` unless `strict` is set.
 
 | Error        | Kind     | Signature                               | Behavior                                                                                                                                       |
 | ------------ | -------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -105,8 +104,8 @@ canonical patterns from, from [`constants.ts`](../src/core/constants.ts).
 Pure, total, zero-dependency leaves from
 [`helpers.ts`](../src/core/helpers.ts) — the option resolvers, the
 hand-written tokenizer and table builders `parsers.ts` composes, and the
-rendering projections callers reach for directly (AGENTS §5). Every function
-is unit-testable in isolation.
+rendering projections callers reach for directly. Every function is
+unit-testable in isolation.
 
 | Helper                  | Kind     | Signature                                                                                                                                            | Behavior                                                                                                                                                               |
 | ----------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -181,12 +180,12 @@ whole `Columns` map of them from a table's own cell values.
 ### Validators
 
 Guards from [`validators.ts`](../src/core/validators.ts) — total, never
-throw, return `false` for any off-shape input (AGENTS §14).
+throw, return `false` for any off-shape input.
 
 | Guard          | Kind  | Narrows to / Tests  | Behavior                                                                                                                                                                                                                                  |
 | -------------- | ----- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `isCSVTable`   | const | `Guard<CSVTable>`   | Determines whether `value` is a valid `CSVTable` — an array of column names plus an array of `Row`s. Delegates its row check to `@orkestrel/contract`'s `isRecord` directly (accepts both an object literal and a null-prototype object). |
-| `isColumnType` | const | `Guard<ColumnType>` | Determines whether `value` is one of the six `ColumnType` literals.                                                                                                                                                                       |
+| `isColumnType` | const | `Guard<ColumnType>` | Determines whether `value` is a `ColumnType` literal.                                                                                                                                                                                     |
 
 ### `CSV`
 
@@ -194,12 +193,9 @@ The implementing class of `CSVInterface`, from [`CSV.ts`](../src/core/CSV.ts).
 A parsed, queryable CSV document: constructed from a CSV `string` (runs
 `parseCSV`) or an already-parsed `CSVTable` (adopted AS-IS, not re-validated —
 `errors` is empty in that case). Exposes its parsed state through the
-`readonly table`, `readonly rows`, and `readonly errors` members (documented
-here in Surface prose alongside the class, per the markdown sibling's
-precedent — these carry no row in the [`## Methods`](#methods) table below,
-which lists only call-signature members). Immutable — `map` never mutates the
-stored table, it returns a new `CSV`. See [`## Methods`](#methods) for its
-public call-signature surface.
+`readonly table`, `readonly rows`, and `readonly errors` members. Immutable —
+`map` never mutates the stored table, it returns a new `CSV`. See
+[`## Methods`](#methods) for its public call-signature surface.
 
 ### Factories
 
@@ -212,10 +208,7 @@ From [`factories.ts`](../src/core/factories.ts).
 
 ## Methods
 
-The public methods of `CSVInterface`, keyed by its backticked name (AGENTS
-§22). The `readonly table` / `rows` / `errors` members are Surface-documented
-above, not listed here — this table lists exactly `CSVInterface`'s
-call-signature members.
+The public methods of `CSVInterface`, keyed by its backticked name.
 
 #### `CSVInterface`
 
@@ -258,9 +251,9 @@ code units. Setting `strict: true` flips this to throw-on-
 first-error: the first collected error throws immediately instead of being
 returned. An invalid OPTION (`INVALID_OPTION` — a malformed delimiter/quote
 pair, an empty `comment`, a negative `limit`, a bad `newline`) is always a
-thrown programmer error, never collected, regardless of `strict` (AGENTS
-§12). A ragged row — a record whose field count does not match the header —
-is handled per `RaggedPolicy`: `'collect'` pads/truncates the row AND records
+thrown programmer error, never collected, regardless of `strict`. A ragged
+row — a record whose field count does not match the header — is handled per
+`RaggedPolicy`: `'collect'` pads/truncates the row AND records
 `RAGGED_ROW`; `'pad'` does the same silently (no error recorded); `'error'`
 excludes the row entirely (still recording `RAGGED_ROW`). A duplicate or
 empty header name is deterministically renamed via `uniqueColumns` (a repeat
@@ -311,15 +304,13 @@ A `Row` is `Record<string, unknown>` — a plain record any database `Table`'s
 runtime dependency on `@orkestrel/database` (this package never imports it).
 `CSVInterface.toJSON` returns the stored `CSVTable` — the JSON-serializable
 seam a CSV round-trips through when crossing a process boundary or a
-`JSON.stringify` call. `CSVInterface.export` (and the standalone
-`createTableContract` factory) produce a `TableExport` — `{ key, columns,
-schema }` — that mirrors `@orkestrel/database`'s `TableExport` shape
-member-for-member: `columns` is the same `Columns` map (a column name keyed
-to a `ContractShape`) either package can declare, and `schema` is the JSON
-Schema `@orkestrel/contract` compiles from it. The interop is purely
-structural — no import crosses the package boundary in either direction — so
-a CSV export re-imports losslessly as a database table definition, and vice
-versa.
+`JSON.stringify` call. `CSVInterface.export` produces a `TableExport` —
+`{ key, columns, schema }`. `@orkestrel/database` declares
+`TableDefinition { primary, columns, schema }`: this package's `Columns` map
+is structurally identical to that package's `ColumnMap`, and `schema` is the
+same JSON Schema `@orkestrel/contract` compiles from it. The two name the key
+column differently — `key` here, `primary` there. The interop is structural:
+no import crosses the package boundary in either direction.
 
 ## Streaming boundary
 
@@ -328,10 +319,9 @@ pull-based stream every call, enqueuing one already-parsed row per `pull` so
 a slow consumer's backpressure is respected. This is a POST-PARSE row
 stream, not chunked ingestion: the entire CSV text is parsed up front (by
 `parseCSV`, synchronously, into a complete `CSVTable`) before `stream()` ever
-enqueues a row. Whole-string parsing is this package's v1 boundary — there is
-no incremental/chunked parser that consumes a text stream and emits rows as
-they arrive; a caller with a very large file reads it fully into memory
-first.
+enqueues a row. The package parses a whole string. It has no incremental
+parser that consumes a text stream and emits rows as they arrive, so a
+caller with a very large file reads it fully into memory first.
 
 ## Patterns
 
@@ -440,11 +430,10 @@ contract.is({ id: 'x', name: 'Ada' }) // false
 
 ```ts
 import { createCSV, isCSVTable } from '@orkestrel/csv'
-import type { CSVTable } from '@orkestrel/csv'
 
 function adopt(candidate: unknown) {
 	if (!isCSVTable(candidate)) return undefined // total guard - never throws
-	return createCSV(candidate as CSVTable) // adopted AS-IS, not re-parsed
+	return createCSV(candidate) // adopted AS-IS, not re-parsed
 }
 ```
 
@@ -473,34 +462,33 @@ isRowList({ columns: ['a'], rows: [{ a: 1 }] }) // false
 
 ## Tests
 
-- [`../../tests/src/core/CSV.test.ts`](../tests/src/core/CSV.test.ts) —
+- [`tests/src/core/CSV.test.ts`](../tests/src/core/CSV.test.ts) —
   construction from a string vs. an adopted table, `find`/`filter`/`reduce`,
   and `map` copy-on-write behavior.
-- [`../../tests/src/core/factories.test.ts`](../tests/src/core/factories.test.ts) —
+- [`tests/src/core/factories.test.ts`](../tests/src/core/factories.test.ts) —
   `createCSV` and `createTableContract` return working, correctly-typed
   results.
-- [`../../tests/src/core/helpers.test.ts`](../tests/src/core/helpers.test.ts) —
-  option resolution (incl. `INVALID_OPTION` throws), column disambiguation,
-  sanitization, cell serialization, the quoting policies, `isRowList`
-  narrowing, and `renderCSV` including its tab-delimiter dialect.
-- [`../../tests/src/core/inferers.test.ts`](../tests/src/core/inferers.test.ts) —
+- [`tests/src/core/helpers.test.ts`](../tests/src/core/helpers.test.ts) —
+  separator validation and option resolution (incl. `INVALID_OPTION`
+  throws), column disambiguation, sanitization, cell serialization, the
+  quoting policies, `isRowList` narrowing, `renderCSV` including its
+  tab-delimiter dialect, and the tokenizer and table-builder leaves
+  (`advancePosition` through `buildRow`).
+- [`tests/src/core/inferers.test.ts`](../tests/src/core/inferers.test.ts) —
   `inferColumnType` against the classic inference traps, `coerceInferred`
   dispatch per `ColumnType`, and `inferRows` copy-on-write.
-- [`../../tests/src/core/parsers.test.ts`](../tests/src/core/parsers.test.ts) —
-  the tokenizer leaves, `deriveHeader`, `buildRow`, the flat cell coercers,
-  `readRecords`, and `parseCSV`, incl. ragged-row policies, header handling,
-  and `strict`-mode throwing.
-- [`../../tests/src/core/shapers.test.ts`](../tests/src/core/shapers.test.ts) —
+- [`tests/src/core/parsers.test.ts`](../tests/src/core/parsers.test.ts) —
+  the flat cell coercers and `parseCSV`, incl. ragged-row policies, header
+  handling, and `strict`-mode throwing.
+- [`tests/src/core/shapers.test.ts`](../tests/src/core/shapers.test.ts) —
   `columnTypeShape` per `ColumnType`, `csvTableShape` structural validation,
   and `deriveShapes` column derivation.
-- [`../../tests/src/core/validators.test.ts`](../tests/src/core/validators.test.ts) —
+- [`tests/src/core/validators.test.ts`](../tests/src/core/validators.test.ts) —
   `isCSVTable` and `isColumnType` soundness on well-formed and off-shape
   input, incl. its leniency-lock cases against `csvTableShape`.
 
 ## See also
 
-- [`AGENTS.md`](../AGENTS.md) — the rules; §5 centralized-file pattern,
-  §12 error handling, §14 guard totality, §22 documentation-as-contracts.
 - [`guide.md`](guide.md) — the mirrored guide for `@orkestrel/guide`, the
   devDependency powering this repo's guides-parity test suite.
 - [`contract.md`](contract.md) — the mirrored guide for `@orkestrel/contract`,

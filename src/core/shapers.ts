@@ -1,3 +1,5 @@
+import type { ContractShape } from '@orkestrel/contract'
+import type { Columns, ColumnType, CSVTable } from './types.js'
 import {
 	arrayShape,
 	booleanShape,
@@ -8,17 +10,15 @@ import {
 	recordShape,
 	stringShape,
 } from '@orkestrel/contract'
-import type { ContractShape } from '@orkestrel/contract'
-import type { Columns, ColumnType, CSVTable } from './types.js'
 import { inferColumnType } from './inferers.js'
 
-// AGENTS section 14 / 4.6.1: shapers are `ContractShape` VALUES (or functions
-// producing them), not guards - the compilers (@orkestrel/contract's
-// `createContract`) turn a shape into a guard / parser / schema / generator in
-// lockstep. `csvTableShape` describes the JSON-serializable projection of a
-// CSVTable (types.ts); `columnTypeShape` maps each portable ColumnType to the
-// shape its values must satisfy; `deriveShapes` builds a whole `Columns` map
-// from a table's own cell values.
+// Shapers are `ContractShape` VALUES (or functions producing them), not
+// guards - the compilers (@orkestrel/contract's `createContract`) turn a
+// shape into a guard / parser / schema / generator in lockstep.
+// `csvTableShape` describes the JSON-serializable projection of a CSVTable
+// (types.ts); `columnTypeShape` maps each portable ColumnType to the shape
+// its values must satisfy; `deriveShapes` builds a whole `Columns` map from
+// a table's own cell values.
 
 /**
  * Returns the {@link ContractShape} a {@link ColumnType}'s values must

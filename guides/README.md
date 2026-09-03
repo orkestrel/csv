@@ -1,6 +1,6 @@
 # Guides
 
-A dual-axis index into this repository's guides — by concept, and by directory (AGENTS §22).
+A dual-axis index into this repository's guides — by concept, and by directory.
 
 ## By concept
 
@@ -17,7 +17,7 @@ A dual-axis index into this repository's guides — by concept, and by directory
 ## Dependency reference
 
 [`contract.md`](contract.md) is a byte-identical mirror of the guide
-for `@orkestrel/contract` — this package's `^0.0.5` runtime dependency. It
+for `@orkestrel/contract` — this package's `^0.0.15` runtime dependency. It
 documents **that package's** surface (guards, combinators, parsers, and the
 shape DSL), not anything sourced in this repo; it is kept here so a reader of
 the CSV column shapes and compiled contracts (`columnTypeShape`,
@@ -30,7 +30,3 @@ suite (`tests/guides.test.ts`). It documents **that package's**
 surface (`Guide` / `Source`, the manifest and comparison helpers), not
 anything sourced in this repo; it is kept here so a reader of the parity
 suite can see the primitives it is built from without leaving this guide set.
-
-## See also
-
-- [`AGENTS.md`](../AGENTS.md) — the rules; §22 documentation-as-contracts.

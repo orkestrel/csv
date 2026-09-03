@@ -1,5 +1,5 @@
 import { coerceInferred, inferColumnType, inferRows } from '@src/core'
-import { buildInferenceTraps } from '../../setup'
+import { buildInferenceTraps } from '../../setup.js'
 import { describe, expect, it } from 'vitest'
 
 describe('inferColumnType', () => {

@@ -1,4 +1,5 @@
 import { columnTypeShape, createCSV, createTableContract, isCSVError, parseCSV } from '@src/core'
+import { captureError } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
 import { assertAndNarrow } from '../../setup.js'
 
@@ -47,22 +48,12 @@ describe('createCSV', () => {
 	it('throws a CSVError when strict is set on malformed input', () => {
 		expect(() => createCSV('a,b\n1,2,3', { strict: true })).toThrow('more fields')
 
-		let caught: unknown
-		try {
-			createCSV('a,b\n1,2,3', { strict: true })
-		} catch (error) {
-			caught = error
-		}
+		const caught = captureError(() => createCSV('a,b\n1,2,3', { strict: true }))
 		expect(isCSVError(caught)).toBe(true)
 	})
 
 	it('throws INVALID_OPTION for an invalid option value', () => {
-		let caught: unknown
-		try {
-			createCSV('a,b\n1,2', { delimiter: '' })
-		} catch (error) {
-			caught = error
-		}
+		const caught = captureError(() => createCSV('a,b\n1,2', { delimiter: '' }))
 		expect(isCSVError(caught)).toBe(true)
 		expect(assertAndNarrow(isCSVError, caught).code).toBe('INVALID_OPTION')
 	})

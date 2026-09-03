@@ -11,8 +11,8 @@ npm install @orkestrel/csv
 
 ## Requirements
 
-- Node.js >= 22
-- ESM-only (no CommonJS build)
+- Node.js >= 22.12.0
+- Dual ESM and CommonJS builds from one entry point
 
 ## Usage
 
@@ -23,8 +23,8 @@ const csv = createCSV('id,name\n1,Ada\n2,Grace', { infer: true })
 csv.rows // [{ id: 1, name: 'Ada' }, { id: 2, name: 'Grace' }]
 csv.errors // [] — no malformed records
 
-const adults = csv.filter((row) => Number(row.id) > 1)
-adults // [{ id: 2, name: 'Grace' }]
+const remaining = csv.filter((row) => Number(row.id) > 1)
+remaining // [{ id: 2, name: 'Grace' }]
 ```
 
 `createCSV(input, options)` (or `new CSV(input, options)`) parses a CSV string

@@ -34,7 +34,7 @@ export function createCSV(input: string | CSVTable, options?: ParseOptions): CSV
 /**
  * Compiles a {@link Columns} map into a {@link ContractInterface} for a
  * {@link Row} - a guard, coercing parser, JSON Schema, and seeded generator
- * from one shape declaration (AGENTS §14).
+ * from one shape declaration.
  *
  * @remarks
  * The bridge for typed export/import interop with `@orkestrel/database`

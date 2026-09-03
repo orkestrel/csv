@@ -27,10 +27,10 @@ import {
 } from './constants.js'
 import { CSVError } from './errors.js'
 
-// Pure, total helper leaves the parser / renderer compose (AGENTS §5 / §14).
+// Pure, total helper leaves the parser / renderer compose.
 // Every function here is a functional-core leaf: referentially transparent,
-// touching no external state, and (aside from the two option resolvers,
-// which throw on a programmer error per AGENTS §12) never throwing.
+// touching no external state, and (aside from resolveParseOptions and
+// resolveRenderOptions, which throw on a programmer error) never throwing.
 //
 // Dependency direction: this file is the bottom of the module graph. It
 // imports types, constants, and errors, and nothing else - `parsers.ts` is
@@ -778,7 +778,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 		const first = scan.record.fields[0]
 		const isBlank =
 			scan.record.fields.length === 1 && first !== undefined && !first.quoted && first.value === ''
-		if (isBlank && resolved.blanks === 'skip') continue
+		if (isBlank && !resolved.blanks) continue
 
 		if (resolved.limit > 0 && emitted >= resolved.limit) {
 			if (errors.length < MAX_ERRORS)

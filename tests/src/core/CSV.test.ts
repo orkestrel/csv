@@ -1,6 +1,6 @@
 import type { CSVTable, ExportOptions, Row } from '@src/core'
-import { stringShape } from '@orkestrel/contract'
-import { collectStream } from '@orkestrel/test'
+import { createContract, isRecord, stringShape } from '@orkestrel/contract'
+import { captureError, collectStream, requireValue } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
 import { assertAndNarrow } from '../../setup.js'
 import { CSV, deriveShapes, isCSVError } from '@src/core'
@@ -10,10 +10,6 @@ import { CSV, deriveShapes, isCSVError } from '@src/core'
 // export operations. Parse-behavior corpora live in parsers.test.ts — this
 // suite covers only the CLASS's own contract: construction, copy-on-write,
 // streaming, and export derivation.
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null
-}
 
 describe('CSV — construction', () => {
 	it('parses CSV text into columns and rows', () => {
@@ -39,13 +35,7 @@ describe('CSV — construction', () => {
 	})
 
 	it('propagates a strict/INVALID_OPTION throw from parseCSV', () => {
-		let caught: unknown
-		try {
-			const csv = new CSV('a,b\n1,2', { delimiter: 'xx' })
-			void csv
-		} catch (error) {
-			caught = error
-		}
+		const caught = captureError(() => new CSV('a,b\n1,2', { delimiter: 'xx' }))
 		const csvError = assertAndNarrow(isCSVError, caught)
 		expect(csvError.code).toBe('INVALID_OPTION')
 	})
@@ -187,7 +177,11 @@ describe('CSV — export', () => {
 	it('infers an integer shape for whole-number numeric cells', () => {
 		const table: CSVTable = { columns: ['n'], rows: [{ n: 1 }, { n: 2 }] }
 		const csv = new CSV(table)
-		expect(csv.export().columns.n).toBeDefined()
+		const contract = createContract(
+			requireValue(csv.export().columns.n, 'no shape derived for column n'),
+		)
+		expect(contract.is(3)).toBe(true)
+		expect(contract.is(3.5)).toBe(false)
 	})
 
 	it('uses columns from options verbatim when given', () => {
@@ -210,26 +204,14 @@ describe('CSV — export', () => {
 
 	it('throws INVALID_OPTION for a key not among the table columns', () => {
 		const csv = new CSV('a,b\n1,2')
-		let caught: unknown
-		try {
-			const result = csv.export({ key: 'nope' })
-			void result
-		} catch (error) {
-			caught = error
-		}
+		const caught = captureError(() => csv.export({ key: 'nope' }))
 		const csvError = assertAndNarrow(isCSVError, caught)
 		expect(csvError.code).toBe('INVALID_OPTION')
 	})
 
 	it('throws INVALID_OPTION for an empty table with no columns', () => {
 		const csv = new CSV({ columns: [], rows: [] })
-		let caught: unknown
-		try {
-			const result = csv.export()
-			void result
-		} catch (error) {
-			caught = error
-		}
+		const caught = captureError(() => csv.export())
 		const csvError = assertAndNarrow(isCSVError, caught)
 		expect(csvError.code).toBe('INVALID_OPTION')
 	})

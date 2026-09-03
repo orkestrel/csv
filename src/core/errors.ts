@@ -1,11 +1,11 @@
 import type { CSVErrorCode } from './types.js'
 
-// AGENTS §12: invalid operations and programmer errors `throw`, always a
-// `CSVError` carrying a machine-readable `code` so a `catch` branches on
-// `error.code` instead of parsing the message. A parse-time malformation
-// (an unterminated quote, a ragged row) is instead COLLECTED into
-// `CSVParseResult.errors` / `CSVInterface.errors` unless `strict` is set, in
-// which case it throws immediately.
+// Invalid operations and programmer errors `throw`, always a `CSVError`
+// carrying a machine-readable `code` so a `catch` branches on `error.code`
+// instead of parsing the message. A parse-time malformation (an unterminated
+// quote, a ragged row) is instead COLLECTED into `CSVParseResult.errors` /
+// `CSVInterface.errors` unless `strict` is set, in which case it throws
+// immediately.
 
 /**
  * Represents an error surfaced by the CSV layer - either thrown for a

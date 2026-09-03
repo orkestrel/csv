@@ -1,4 +1,3 @@
-import { createContract, objectShape } from '@orkestrel/contract'
 import type {
 	CSVInterface,
 	CSVParseResult,
@@ -8,6 +7,7 @@ import type {
 	Row,
 	TableExport,
 } from './types.js'
+import { createContract, objectShape } from '@orkestrel/contract'
 import { CSVError } from './errors.js'
 import { parseCSV } from './parsers.js'
 import { deriveShapes } from './shapers.js'
@@ -112,13 +112,6 @@ export class CSV implements CSVInterface {
 		return csv
 	}
 
-	// Carries the source parse's errors onto a copy-on-write map() result -
-	// a fresh CSV built from a plain CSVTable otherwise adopts an empty
-	// errors list, since the source parse is not repeated.
-	#carry(errors: readonly CSVError[]): void {
-		this.#result = { table: this.#result.table, errors }
-	}
-
 	/**
 	 * Folds the rows, in table order, into an accumulator.
 	 *
@@ -207,5 +200,12 @@ export class CSV implements CSVInterface {
 		const columns = options?.columns ?? deriveShapes(this.#result.table)
 		const schema = createContract(objectShape(columns)).schema
 		return { key, columns, schema }
+	}
+
+	// Carries the source parse's errors onto a copy-on-write map() result -
+	// a fresh CSV built from a plain CSVTable otherwise adopts an empty
+	// errors list, because the source parse is not repeated.
+	#carry(errors: readonly CSVError[]): void {
+		this.#result = { table: this.#result.table, errors }
 	}
 }

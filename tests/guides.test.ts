@@ -1,6 +1,6 @@
 // The consumer-side guides-parity drop-in: runs `@orkestrel/guide`'s checks against
-// this repo's own `guides/README.md` manifest. The four constants below are this
-// package's own, and are the only part a sibling package changes.
+// this repo's own `guides/README.md` manifest. The constants that follow and the
+// `flagship fences` block are this package's own; a sibling package rewrites each of them.
 
 import { describe, expect, it } from 'vitest'
 import {
@@ -17,8 +17,21 @@ import {
 	parseManifest,
 	resolveLink,
 } from '@orkestrel/guide'
+import {
+	coerceInferred,
+	columnTypeShape,
+	createCSV,
+	createTableContract,
+	isBreakChar,
+	isCSVError,
+	isRowList,
+	parseCSV,
+	renderCSV,
+	resolveParseOptions,
+	scanField,
+} from '@src/core'
 import { readFileSync } from 'node:fs'
-import { requireValue } from '@orkestrel/test'
+import { captureError, requireValue } from '@orkestrel/test'
 import { readInventory } from '@orkestrel/test/server'
 
 /** Every fence language this package's guides are allowed to use. */
@@ -37,8 +50,12 @@ const MODULES = Object.freeze({ '@orkestrel/csv': 'src/core', '@src/core': 'src/
  */
 const INTERNAL: readonly string[] = Object.freeze([])
 
-/** Root-level files this package's guides link to. `readInventory` walks directories only. */
-const ROOT_FILES = Object.freeze(['AGENTS.md'])
+/** Root-level files the flagship-fence cases read. `readInventory` walks directories only. */
+const ROOT_FILES = Object.freeze(['README.md'])
+/** The guide whose flagship fences the executed cases below transcribe. */
+const CORE_GUIDE = 'guides/csv.md'
+/** The package README whose usage fences the executed cases below transcribe. */
+const PACKAGE_README = 'README.md'
 
 const root = new URL('../', import.meta.url)
 const files: Record<string, string> = {
@@ -168,3 +185,147 @@ for (const entry of manifest) {
 		})
 	})
 }
+
+// The EXECUTED half. Every preceding check reads a name, and a name that
+// resolves proves nothing about the sentence beside it, so a fence whose
+// comment claims a value the code contradicts passes all of them. The cases
+// here run the flagship fences and assert the values their comments claim,
+// each beside a presence guard binding the documented line. Change a fence,
+// change the transcription beside it.
+describe('flagship fences', () => {
+	const guideText = requireValue(files[CORE_GUIDE], `Missing file: ${CORE_GUIDE}`)
+	const readmeText = requireValue(files[PACKAGE_README], `Missing file: ${PACKAGE_README}`)
+
+	it('parses the Surface fence into inferred rows', () => {
+		const csv = createCSV('name,age\nAda,36\nGrace,85', { infer: true })
+
+		expect(csv.rows).toEqual([
+			{ name: 'Ada', age: 36 },
+			{ name: 'Grace', age: 85 },
+		])
+		expect(guideText).toContain(
+			"csv.rows // [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }]",
+		)
+	})
+
+	it('reads the parse-and-query fence table', () => {
+		const csv = createCSV('name,age\nAda,36\nGrace,85', { infer: true })
+
+		expect(csv.table).toEqual({
+			columns: ['name', 'age'],
+			rows: [
+				{ name: 'Ada', age: 36 },
+				{ name: 'Grace', age: 85 },
+			],
+		})
+		expect(guideText).toContain(
+			"csv.table // { columns: ['name', 'age'], rows: [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }] }",
+		)
+	})
+
+	it('renders the rewritten table the map fence produces', () => {
+		const csv = createCSV('name,age\nAda,36', { infer: true })
+		const older = csv.map((row) => ({ ...row, age: Number(row.age) + 1 }))
+
+		expect(renderCSV(older.toJSON())).toBe('name,age\r\nAda,37')
+		expect(guideText).toContain("renderCSV(older.toJSON()) // 'name,age\\r\\nAda,37'")
+	})
+
+	it('folds the reduce fence to its documented total', () => {
+		const csv = createCSV('amount\n10\n20\n30', { infer: true })
+
+		expect(csv.reduce<number>((sum, row) => sum + Number(row.amount), 0)).toBe(60)
+		expect(guideText).toContain(
+			'const total = csv.reduce<number>((sum, row) => sum + Number(row.amount), 0) // 60',
+		)
+	})
+
+	it('drains the streaming fence to its documented values', async () => {
+		const csv = createCSV('a\n1\n2\n3')
+		const reader = csv.stream().getReader()
+		const values: string[] = []
+		for (let result = await reader.read(); !result.done; result = await reader.read()) {
+			values.push(String(result.value.a))
+		}
+
+		expect(values).toEqual(['1', '2', '3'])
+		expect(guideText).toContain("// values: ['1', '2', '3']")
+	})
+
+	it('collects rather than throws in the non-strict error fence', () => {
+		const csv = createCSV('a,b\n1,2,3')
+
+		expect(csv.errors.length > 0).toBe(true)
+		expect(guideText).toContain('csv.errors.length > 0 // true')
+	})
+
+	it('throws the documented code in the strict fence', () => {
+		const caught = captureError(() => createCSV('a,b\n1,2,3', { strict: true }))
+
+		expect(isCSVError(caught) ? caught.code : undefined).toBe('RAGGED_ROW')
+		expect(guideText).toContain("if (isCSVError(error)) error.code // 'RAGGED_ROW'")
+	})
+
+	it('keys the export fence at its first column', () => {
+		const csv = createCSV('id,name\n1,Ada\n2,Grace', { infer: true })
+
+		expect(csv.export().key).toBe('id')
+		expect(guideText).toContain('const table = csv.export()')
+		expect(readmeText).toContain("table.key // 'id'")
+	})
+
+	it('answers from the contract the row-validation fence compiles', () => {
+		const contract = createTableContract({
+			id: columnTypeShape('integer'),
+			name: columnTypeShape('text'),
+		})
+
+		expect(contract.is({ id: 1, name: 'Ada' })).toBe(true)
+		expect(contract.is({ id: 'x', name: 'Ada' })).toBe(false)
+		expect(guideText).toContain("contract.is({ id: 1, name: 'Ada' }) // true")
+		expect(guideText).toContain("contract.is({ id: 'x', name: 'Ada' }) // false")
+	})
+
+	it('returns the documented values from the tokenizer-leaf fence', () => {
+		const scan = scanField('ab,c', { offset: 0, line: 1, column: 1 }, resolveParseOptions())
+
+		expect(isBreakChar('\n')).toBe(true)
+		expect(isBreakChar('a')).toBe(false)
+		expect(scan.field).toEqual({ value: 'ab', quoted: false })
+		expect(coerceInferred('42', 'integer')).toBe(42)
+		expect(isRowList([{ a: 1 }])).toBe(true)
+		expect(isRowList({ columns: ['a'], rows: [{ a: 1 }] })).toBe(false)
+		expect(guideText).toContain("isBreakChar('\\n') // true")
+		expect(guideText).toContain("isBreakChar('a') // false")
+		expect(guideText).toContain("scan.field // { value: 'ab', quoted: false }")
+		expect(guideText).toContain("coerceInferred('42', 'integer') // 42")
+		expect(guideText).toContain('isRowList([{ a: 1 }]) // true')
+		expect(guideText).toContain("isRowList({ columns: ['a'], rows: [{ a: 1 }] }) // false")
+	})
+
+	it('parses the README usage fence into inferred rows', () => {
+		const csv = createCSV('id,name\n1,Ada\n2,Grace', { infer: true })
+
+		expect(csv.rows).toEqual([
+			{ id: 1, name: 'Ada' },
+			{ id: 2, name: 'Grace' },
+		])
+		expect(readmeText).toContain("csv.rows // [{ id: 1, name: 'Ada' }, { id: 2, name: 'Grace' }]")
+	})
+
+	it('renders the README table to its documented text', () => {
+		const csv = createCSV('id,name\n1,Ada\n2,Grace', { infer: true })
+
+		expect(renderCSV(csv.table)).toBe('id,name\r\n1,Ada\r\n2,Grace')
+		expect(readmeText).toContain("// 'id,name\\r\\n1,Ada\\r\\n2,Grace'")
+	})
+
+	it('positions the README error fence at its documented code and line', () => {
+		const { errors } = parseCSV('a,b\n"unterminated,x')
+
+		expect(errors[0]?.code).toBe('UNTERMINATED_QUOTE')
+		expect(errors[0]?.line).toBe(2)
+		expect(readmeText).toContain("errors[0]?.code // 'UNTERMINATED_QUOTE'")
+		expect(readmeText).toContain('errors[0]?.line // 2')
+	})
+})

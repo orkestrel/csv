@@ -1,10 +1,11 @@
 import type { ColumnType } from '@src/core'
 import { columnTypeShape, csvTableShape, deriveShapes, isCSVTable } from '@src/core'
 import { createContract } from '@orkestrel/contract'
+import { requireValue } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
 
 // Each shape here compiles (via createContract) into a guard / parser /
-// schema / generator that must agree in lockstep (AGENTS section 14 / 16).
+// schema / generator that must agree in lockstep.
 
 describe('columnTypeShape', () => {
 	const types: readonly ColumnType[] = ['text', 'integer', 'real', 'boolean', 'json', 'blob']
@@ -79,7 +80,7 @@ describe('csvTableShape', () => {
 		expect(contract.is({ rows: [] })).toBe(false)
 	})
 
-	it('agrees with isCSVTable across a shared fixture set (parse ↔ guard soundness, AGENTS §14)', () => {
+	it('agrees with isCSVTable across a shared fixture set (parse ↔ guard soundness)', () => {
 		const fixtures: readonly unknown[] = [
 			{ columns: ['a', 'b'], rows: [{ a: 1, b: 'x' }] },
 			{ columns: ['a'], rows: [Object.assign(Object.create(null), { a: 1 })] },
@@ -98,28 +99,39 @@ describe('csvTableShape', () => {
 describe('deriveShapes', () => {
 	it('derives text for a column with no non-empty cells', () => {
 		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '' }, { a: undefined }] })
-		expect(columns.a).toBeDefined()
+		const contract = createContract(requireValue(columns.a, 'no shape derived for column a'))
+		expect(contract.is('x')).toBe(true)
+		expect(contract.is(5)).toBe(false)
 	})
 
 	it('derives an inferred type for an all-string column', () => {
 		const columns = deriveShapes({ columns: ['a'], rows: [{ a: '1' }, { a: '2' }] })
-		expect(columns.a).toBeDefined()
+		const contract = createContract(requireValue(columns.a, 'no shape derived for column a'))
+		expect(contract.is(1)).toBe(true)
+		expect(contract.is(1.5)).toBe(false)
 	})
 
 	it('derives integer/real for an all-number column', () => {
 		const integer = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 2 }] })
-		expect(integer.a).toBeDefined()
+		const integerContract = createContract(requireValue(integer.a, 'no shape derived for column a'))
+		expect(integerContract.is(2)).toBe(true)
+		expect(integerContract.is(2.5)).toBe(false)
 		const real = deriveShapes({ columns: ['a'], rows: [{ a: 1.5 }] })
-		expect(real.a).toBeDefined()
+		const realContract = createContract(requireValue(real.a, 'no shape derived for column a'))
+		expect(realContract.is(1.5)).toBe(true)
 	})
 
 	it('derives boolean for an all-boolean column', () => {
 		const columns = deriveShapes({ columns: ['a'], rows: [{ a: true }, { a: false }] })
-		expect(columns.a).toBeDefined()
+		const contract = createContract(requireValue(columns.a, 'no shape derived for column a'))
+		expect(contract.is(true)).toBe(true)
+		expect(contract.is(1)).toBe(false)
 	})
 
 	it('derives json for a mixed column', () => {
 		const columns = deriveShapes({ columns: ['a'], rows: [{ a: 1 }, { a: 'x' }] })
-		expect(columns.a).toBeDefined()
+		const contract = createContract(requireValue(columns.a, 'no shape derived for column a'))
+		expect(contract.is(1)).toBe(true)
+		expect(contract.is('x')).toBe(true)
 	})
 })

@@ -15,7 +15,7 @@ export const TEST_SEED = 42
  * Assert that `value` satisfies `guard` and return it narrowed to `T` —
  * throws with a clear message when the guard rejects, so a test reads the
  * narrowed value directly instead of an `as` cast or an `if`-guarded
- * `expect` (both AGENTS-forbidden; §1 / §16).
+ * `expect`, which the coding rules forbid.
  *
  * @param guard - The total type guard to narrow with
  * @param value - The candidate value (typically a parse/render result)
