@@ -21,7 +21,7 @@ import { deriveShapes } from './shapers.js'
  * - **Construction.** Given a `string`, the constructor runs {@link parseCSV}
  *   to build the {@link CSVTable}. Given a {@link CSVTable}, the table is
  *   adopted AS-IS and is NOT re-validated - a caller adopting an untrusted
- *   value should gate it with a guard first; `errors` is empty in that case.
+ *   value must gate it with a guard first; `errors` is empty in that case.
  * - **Immutable.** {@link map} never mutates the stored table - it returns a
  *   NEW {@link CSV} instance. **Traversal order.** `find` / `filter` /
  *   `reduce` iterate `rows` in table order.

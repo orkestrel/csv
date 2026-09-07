@@ -12,7 +12,7 @@ export const TEST_SEED = 42
 // ── Assert-and-narrow ──────────────────────────────────────────────────────────
 
 /**
- * Assert that `value` satisfies `guard` and return it narrowed to `T` —
+ * Asserts that `value` satisfies `guard` and returns it narrowed to `T` —
  * throws with a clear message when the guard rejects, so a test reads the
  * narrowed value directly instead of an `as` cast or an `if`-guarded
  * `expect`, which the coding rules forbid.
@@ -38,9 +38,9 @@ export function assertAndNarrow<T>(guard: (value: unknown) => value is T, value:
 // hand-rolling them inline.
 
 /**
- * A quoted CSV field containing a delimiter, a CR, an LF, and an escaped
- * quote — the canonical field that forces quoting and exercises embedded
- * newline / escape handling in one fixture.
+ * Builds a quoted CSV field containing a delimiter, a CR, an LF, and an
+ * escaped quote — the canonical field that forces quoting and exercises
+ * embedded newline / escape handling in one fixture.
  *
  * @returns A single quoted CSV field, delimiter-and-newline-safe as written
  *
@@ -54,8 +54,8 @@ export function buildQuotedField(): string {
 }
 
 /**
- * A ragged CSV document — a three-column header, one row with fewer fields
- * than the header, and one row with more.
+ * Builds a ragged CSV document — a three-column header, one row with fewer
+ * fields than the header, and one row with more.
  *
  * @returns CSV text with a short row and a long row relative to its header
  *
@@ -69,8 +69,8 @@ export function buildRaggedCSV(): string {
 }
 
 /**
- * A CSV document whose records are separated by every newline convention in
- * one document — CRLF, bare LF, and bare CR.
+ * Builds a CSV document whose records are separated by every newline
+ * convention in one document — CRLF, bare LF, and bare CR.
  *
  * @returns CSV text mixing `\r\n`, `\n`, and `\r` record separators
  *
@@ -84,7 +84,7 @@ export function buildMixedNewlineCSV(): string {
 }
 
 /**
- * The classic type-inference trap strings — values that LOOK numeric or
+ * Lists the classic type-inference trap strings — values that LOOK numeric or
  * boolean-ish but must not silently coerce in a naive inferrer (a leading
  * zero, a phone number, scientific notation, a hex literal, an
  * out-of-range integer, `NaN` / `Infinity` as text, an ambiguous date, a

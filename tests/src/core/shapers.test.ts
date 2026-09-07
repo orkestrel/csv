@@ -4,7 +4,7 @@ import { createContract } from '@orkestrel/contract'
 import { requireValue } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
 
-// Each shape here compiles (via createContract) into a guard / parser /
+// Each shape here compiles (through createContract) into a guard / parser /
 // schema / generator that must agree in lockstep.
 
 describe('columnTypeShape', () => {

@@ -63,7 +63,7 @@ export function inferColumnType(values: readonly string[]): ColumnType {
  * @param type - The column's inferred {@link ColumnType} (never `'json'` /
  * `'blob'` - those are never inferred, and pass through unchanged like
  * `'text'`)
- * @returns The typed value, via {@link parseInteger} / {@link parseReal} /
+ * @returns The typed value, through {@link parseInteger} / {@link parseReal} /
  * {@link parseBoolean}; `value` unchanged for `'text'` (or the unreachable
  * `'json'` / `'blob'`)
  */
@@ -85,7 +85,7 @@ export function coerceInferred(value: string, type: ColumnType): unknown {
 /**
  * Applies whole-column type inference to a built row set - per column, infers
  * its {@link ColumnType} from its string cells, then coerces every cell of
- * that type via {@link coerceInferred}.
+ * that type through {@link coerceInferred}.
  *
  * @remarks
  * An empty-string cell becomes `undefined` for any non-`'text'` column

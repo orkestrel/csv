@@ -1,6 +1,6 @@
 {
 	"name": "@orkestrel/csv",
-	"version": "0.0.6",
+	"version": "0.0.7",
 	"description": "A typed CSV toolkit — RFC 4180 parsing and rendering with typed rows, dialect control, and structural database interop. Part of the @orkestrel line.",
 	"keywords": [
 		"csv",
@@ -67,7 +67,8 @@
 		"test:probe": "vitest run --config vite.config.ts --no-cache --reporter=verbose --project probe",
 		"test:bench": "vitest bench --config vite.config.ts --no-cache --project probe",
 		"prepack": "npm run build",
-		"test:setup": "vitest run --config vite.config.ts --no-cache --reporter=dot --project setup"
+		"test:setup": "vitest run --config vite.config.ts --no-cache --reporter=dot --project setup",
+		"docs": "node --experimental-strip-types scripts/docs.ts"
 	},
 	"dependencies": {
 		"@orkestrel/contract": "^0.0.16"

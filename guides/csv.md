@@ -113,7 +113,7 @@ unit-testable in isolation.
 | `resolveParseOptions`   | function | `(options?: ParseOptions) => ResolvedParseOptions`                                                                                                   | Merges `options` over `DEFAULT_PARSE_OPTIONS`; throws `INVALID_OPTION` for a bad separator pair, an empty `comment`, or a negative/non-integer `limit`.                |
 | `resolveRenderOptions`  | function | `(options?: RenderOptions) => ResolvedRenderOptions`                                                                                                 | Merges `options` over `DEFAULT_RENDER_OPTIONS`; throws `INVALID_OPTION` for a bad separator pair or an invalid `newline`.                                              |
 | `uniqueName`            | function | `(name: string, taken: ReadonlySet<string>) => string`                                                                                               | Disambiguates one candidate name against the names already taken — unchanged if free, else suffixed `_2`, `_3`, … until unique.                                        |
-| `uniqueColumns`         | function | `(names: readonly string[]) => readonly string[]`                                                                                                    | Deterministically disambiguates header names — blank becomes positional, a repeat is suffixed `_2`, `_3`, …, via `uniqueName`.                                         |
+| `uniqueColumns`         | function | `(names: readonly string[]) => readonly string[]`                                                                                                    | Deterministically disambiguates header names — blank becomes positional, a repeat is suffixed `_2`, `_3`, …, through `uniqueName`.                                         |
 | `sanitizeField`         | function | `(field: string) => string`                                                                                                                          | Guards a field against CSV formula injection — prefixes a protective `'` unless the field is a plain signed number.                                                    |
 | `serializeCell`         | function | `(value: unknown, blank: string) => string`                                                                                                          | Stringifies one cell value — `blank` for `null`/`undefined`, `String(value)` for a number/boolean/bigint, `JSON.stringify` (degrading to `blank`) otherwise.           |
 | `deriveColumns`         | function | `(rows: readonly Row[]) => readonly string[]`                                                                                                        | Derives a column order from a plain row list — the first-seen union of every row's keys.                                                                               |
@@ -134,7 +134,7 @@ unit-testable in isolation.
 | `scanField`             | function | `(source: string, position: Position, options: ResolvedParseOptions) => FieldScan`                                                                   | Scans one field at `position` — dispatches to `scanQuoted` when at `options.quote`, else `scanUnquoted`.                                                               |
 | `scanRecord`            | function | `(source: string, position: Position, options: ResolvedParseOptions) => RecordScan`                                                                  | Scans one full record — fields separated by `options.delimiter`, ending at a break (consumed) or end-of-input.                                                         |
 | `readRecords`           | function | `(input: string, options?: ParseOptions) => RecordsResult`                                                                                           | Splits `input` into raw, un-mapped `RawRecord`s — the tokenizer phase beneath `parseCSV`; a single leading BOM is stripped first.                                      |
-| `deriveHeader`          | function | `(records: readonly RawRecord[], options: ResolvedParseOptions) => HeaderResult`                                                                     | Resolves a table's header — disambiguates the first record (`header: true`, via `uniqueColumns`) or generates positional names sized to the widest record (`false`).   |
+| `deriveHeader`          | function | `(records: readonly RawRecord[], options: ResolvedParseOptions) => HeaderResult`                                                                     | Resolves a table's header — disambiguates the first record (`header: true`, through `uniqueColumns`) or generates positional names sized to the widest record (`false`).   |
 | `buildRow`              | function | `(record: RawRecord, columns: readonly string[], options: ResolvedParseOptions) => RowResult`                                                        | Builds one `RawRecord` into a null-prototype `Row`, padding/truncating to `columns.length` per `options.ragged`.                                                       |
 
 ### Inferers
@@ -147,7 +147,7 @@ cell.
 | Inferer           | Kind     | Signature                                                              | Behavior                                                                                                                                                                |
 | ----------------- | -------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `inferColumnType` | function | `(values: readonly string[]) => ColumnType`                            | Conservatively infers a whole column's type — never `'json'`/`'blob'`; empty cells are ignored; a leading-zero or unsafe-magnitude number stays `'text'`.               |
-| `coerceInferred`  | function | `(value: string, type: ColumnType) => unknown`                         | Coerces one string cell to `type`'s typed representation, via `parseInteger` / `parseReal` / `parseBoolean`; unchanged for `'text'` (or unreachable `'json'`/`'blob'`). |
+| `coerceInferred`  | function | `(value: string, type: ColumnType) => unknown`                         | Coerces one string cell to `type`'s typed representation, through `parseInteger` / `parseReal` / `parseBoolean`; unchanged for `'text'` (or unreachable `'json'`/`'blob'`). |
 | `inferRows`       | function | `(rows: readonly Row[], columns: readonly string[]) => readonly Row[]` | Applies whole-column type inference to a built row set — copy-on-write, never mutates `rows`.                                                                           |
 
 ### Parsers
@@ -216,8 +216,8 @@ The public methods of `CSVInterface`, keyed by its backticked name.
 | -------- | --------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `find`   | `Row \| undefined`    | Finds the first row matching a predicate, tested against each row (and its index) in table order.               |
 | `filter` | `readonly Row[]`      | Collects every row matching a predicate, in table order.                                                        |
-| `map`    | `CSVInterface`        | Rewrites every row (copy-on-write) via a callback and returns a NEW `CSVInterface`; never mutates the original. |
-| `reduce` | `T`                   | Folds the rows, in table order, into an accumulator via a plain reducer callback.                               |
+| `map`    | `CSVInterface`        | Rewrites every row (copy-on-write) through a callback and returns a NEW `CSVInterface`; never mutates the original. |
+| `reduce` | `T`                   | Folds the rows, in table order, into an accumulator through a plain reducer callback.                               |
 | `stream` | `ReadableStream<Row>` | A fresh, web-standard, pull-based stream over the table's rows (source order); one row enqueued per `pull`.     |
 | `toJSON` | `CSVTable`            | Returns the stored `CSVTable` — the JSON-serializable projection.                                               |
 | `export` | `TableExport`         | Produces a portable `{ key, columns, schema }` export for moving this CSV's schema elsewhere.                   |
@@ -256,7 +256,7 @@ row — a record whose field count does not match the header — is handled per
 `RaggedPolicy`: `'collect'` pads/truncates the row AND records
 `RAGGED_ROW`; `'pad'` does the same silently (no error recorded); `'error'`
 excludes the row entirely (still recording `RAGGED_ROW`). A duplicate or
-empty header name is deterministically renamed via `uniqueColumns` (a repeat
+empty header name is deterministically renamed through `uniqueColumns` (a repeat
 gets a `_2`, `_3`, … suffix; a blank name becomes positional) so the table
 always has a full, unique column list even when the header itself was
 malformed.

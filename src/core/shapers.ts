@@ -29,7 +29,7 @@ import { inferColumnType } from './inferers.js'
  * text on the wire, so a blob column carries its base64/text encoding as a
  * string rather than a binary shape. `'integer'` uses an integer-constrained
  * number shape (rejects fractional values); `'real'` a plain number shape.
- * `'json'` accepts any JSON value via {@link jsonShape}.
+ * `'json'` accepts any JSON value through {@link jsonShape}.
  *
  * @param type - The column's declared {@link ColumnType}
  * @returns The value shape for that column type
@@ -97,7 +97,7 @@ export const csvTableShape = objectShape({
  *
  * @param table - The table to inspect
  * @returns A {@link Columns} map, one shape per column: `'text'` when a
- * column has no non-empty cells; the string-inferred type (via
+ * column has no non-empty cells; the string-inferred type (through
  * {@link inferColumnType}) when every cell is a string; `'integer'` /
  * `'real'` when every cell is a number (by `Number.isSafeInteger`);
  * `'boolean'` when every cell is a boolean; `'json'` otherwise

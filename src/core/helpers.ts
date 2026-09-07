@@ -682,7 +682,7 @@ export function scanField(
 
 /**
  * Scans one full record at `position` - fields separated by
- * `options.delimiter`, ending at a break (consumed via {@link scanBreak}) or
+ * `options.delimiter`, ending at a break (consumed through {@link scanBreak}) or
  * end-of-input.
  *
  * @param source - The source text
@@ -800,7 +800,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
  * names sized to the widest record otherwise.
  *
  * @remarks
- * `header: true` disambiguates via {@link uniqueColumns}, collecting
+ * `header: true` disambiguates through {@link uniqueColumns}, collecting
  * `EMPTY_HEADER` for a blank raw name and `DUPLICATE_HEADER` for a repeat of
  * an earlier raw name, both positioned at the header record's
  * {@link Position}. `header: false` generates positional names sized to the
@@ -867,7 +867,7 @@ export function deriveHeader(
  * @param record - The raw record to build
  * @param columns - The resolved column order
  * @param options - The resolved parse options
- * @returns The built row and/or the ragged-row error
+ * @returns The built row, and the ragged-row error when one occurs
  *
  * @example
  * ```ts
