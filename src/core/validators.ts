@@ -9,16 +9,16 @@ import { arrayOf, isRecord, isString, literalOf, recordOf } from '@orkestrel/con
 // directly; `isColumnType` narrows a portable ColumnType literal.
 
 /**
- * Determines whether an arbitrary value is a valid {@link CSVTable} - an
+ * Determines whether an arbitrary value is a valid {@link CSVTable} — an
  * array of column names plus an array of {@link Row}s.
  *
  * @remarks
- * Total: never throws, even on cyclic or pathologically deep input - every
+ * Total: never throws, even on cyclic or pathologically deep input — every
  * combinator involved (`recordOf`, `arrayOf`) is throw-contained per the
  * `@orkestrel/contract` guard contract. Each row is validated through
  * `@orkestrel/contract`'s `isRecord`, which accepts BOTH an object literal
- * and a null-prototype object (`Object.create(null)`) - the shape the CSV
- * parser deliberately produces for parsed rows - while rejecting arrays,
+ * and a null-prototype object (`Object.create(null)`) — the shape the CSV
+ * parser deliberately produces for parsed rows — while rejecting arrays,
  * functions, and non-object values.
  *
  * @param value - The value to test

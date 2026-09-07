@@ -7,8 +7,8 @@
 
 Parse a document with the `createCSV` function, read its rows as plain typed
 records, and write a table back out with `renderCSV`. Dialect control and
-structural interop with `@orkestrel/database` are options on those two calls.
-Part of the `@orkestrel` line.
+structural interop with `@orkestrel/database` are options on the `createCSV`
+and `renderCSV` calls. Part of the `@orkestrel` line.
 
 ## Install
 

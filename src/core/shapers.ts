@@ -25,7 +25,7 @@ import { inferColumnType } from './inferers.js'
  * satisfy.
  *
  * @remarks
- * `'text'` and `'blob'` both shape as plain strings - a CSV field is always
+ * `'text'` and `'blob'` both shape as plain strings — a CSV field is always
  * text on the wire, so a blob column carries its base64/text encoding as a
  * string rather than a binary shape. `'integer'` uses an integer-constrained
  * number shape (rejects fractional values); `'real'` a plain number shape.
@@ -63,7 +63,7 @@ export function columnTypeShape(type: ColumnType): ContractShape {
 
 /**
  * Represents the {@link ContractShape} of a {@link CSVTable}'s
- * JSON-serializable projection - an ordered `columns` list of strings plus
+ * JSON-serializable projection — an ordered `columns` list of strings plus
  * `rows`, each an open record of JSON values.
  *
  * @remarks
@@ -91,7 +91,7 @@ export const csvTableShape = objectShape({
 
 /**
  * Derives one {@link ContractShape} per table column from that column's cell
- * values across all rows (excluding `undefined`/empty-string cells) - the
+ * values across all rows (excluding `undefined`/empty-string cells) — the
  * schema-inference leaf behind {@link CSVInterface.export} when no explicit
  * {@link Columns} is given.
  *

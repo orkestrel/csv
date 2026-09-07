@@ -23,7 +23,7 @@ import { inferRows } from './inferers.js'
 // has not yet defined.
 
 /**
- * Parses `input` into a typed {@link CSVParseResult} - header mapping,
+ * Parses `input` into a typed {@link CSVParseResult} — header mapping,
  * ragged-row handling, and optional type inference on top of
  * {@link readRecords}, {@link deriveHeader}, {@link buildRow}, and
  * {@link inferRows}.
@@ -32,16 +32,16 @@ import { inferRows } from './inferers.js'
  * Every row is built with a null prototype (see {@link buildRow}), so a
  * hostile header name (`__proto__`, `constructor`, `prototype`) becomes a
  * plain own property that can never reach `Object.prototype`.
- * `options.limit` caps the number of DATA records - the header record (when
+ * `options.limit` caps the number of DATA records — the header record (when
  * `header: true`) is exempt from the cap. `strict: true` throws at the point
- * the FIRST error is discovered - a tokenizer error immediately after
+ * the FIRST error is discovered — a tokenizer error immediately after
  * {@link readRecords} returns, a header error immediately after
  * {@link deriveHeader} returns, or a row-building error the instant it is
- * found while iterating the body in record order - instead of scanning to
+ * found while iterating the body in record order — instead of scanning to
  * completion and throwing `errors[0]`; the thrown error is identical to the
  * `errors[0]` a non-strict call would collect for the same input. Otherwise
  * `parseCSV` never throws on malformed data, and errors are returned in
- * discovery order - never sorted.
+ * discovery order — never sorted.
  *
  * @param input - The raw CSV text (BOM optional)
  * @param options - Parse options (see {@link resolveParseOptions})
@@ -107,7 +107,7 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 }
 
 /**
- * Parses a raw cell string into a canonical integer - `undefined` for anything
+ * Parses a raw cell string into a canonical integer — `undefined` for anything
  * else (leading zeros, decimals, out-of-safe-range magnitude, non-numeric
  * text).
  *
@@ -134,7 +134,7 @@ export function parseInteger(value: string): number | undefined {
 }
 
 /**
- * Parses a raw cell string into a canonical decimal (or integer) - `undefined`
+ * Parses a raw cell string into a canonical decimal (or integer) — `undefined`
  * for anything else.
  *
  * @remarks
@@ -159,7 +159,7 @@ export function parseReal(value: string): number | undefined {
 }
 
 /**
- * Parses a raw cell string into a strict boolean - `undefined` for anything
+ * Parses a raw cell string into a strict boolean — `undefined` for anything
  * other than the exact canonical forms.
  *
  * @remarks

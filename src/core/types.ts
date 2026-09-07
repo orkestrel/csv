@@ -7,11 +7,11 @@ import type { CSVError } from './errors.js'
 // package; this file re-derives the equivalent shapes locally so both packages
 // stay independent and portable. Types are the source of truth.
 
-/** Represents a CSV row - a plain record of column values keyed by column name. */
+/** Represents a CSV row — a plain record of column values keyed by column name. */
 export type Row = Record<string, unknown>
 
 /**
- * Represents a parsed CSV table - the typed rows plus the column order they
+ * Represents a parsed CSV table — the typed rows plus the column order they
  * were parsed (or declared) in.
  */
 export interface CSVTable {
@@ -22,13 +22,13 @@ export interface CSVTable {
 }
 
 /**
- * Represents one raw parsed field - the value exactly as it appeared in a
+ * Represents one raw parsed field — the value exactly as it appeared in a
  * record, before type inference or column mapping, plus whether it was quoted
  * in the source.
  *
  * @remarks
  * `quoted` distinguishes a field that was empty because it was written `""`
- * from one that was empty because nothing was written at all - a distinction
+ * from one that was empty because nothing was written at all — a distinction
  * type inference and the `'nonnumeric'` quote policy both depend on.
  */
 export interface RawField {
@@ -39,7 +39,7 @@ export interface RawField {
 }
 
 /**
- * Represents a cursor position in a parsed source text - relative to the
+ * Represents a cursor position in a parsed source text — relative to the
  * input after byte-order-mark removal.
  *
  * @remarks
@@ -56,7 +56,7 @@ export interface Position {
 }
 
 /**
- * Represents one raw parsed record - its ordered {@link RawField}s plus where
+ * Represents one raw parsed record — its ordered {@link RawField}s plus where
  * the record begins in the source, before header mapping.
  *
  * @remarks
@@ -71,7 +71,7 @@ export interface RawRecord {
 }
 
 /**
- * Represents one scanned field - a single {@link RawField} the tokenizer
+ * Represents one scanned field — a single {@link RawField} the tokenizer
  * produced, the {@link Position} immediately after it, and any malformations
  * found while scanning it.
  */
@@ -85,7 +85,7 @@ export interface FieldScan {
 }
 
 /**
- * Represents one scanned record - a single {@link RawRecord} the tokenizer
+ * Represents one scanned record — a single {@link RawRecord} the tokenizer
  * produced, the {@link Position} immediately after it, and any malformations
  * found while scanning it.
  */
@@ -99,7 +99,7 @@ export interface RecordScan {
 }
 
 /**
- * Represents the result of resolving a header record - the disambiguated
+ * Represents the result of resolving a header record — the disambiguated
  * column names, the remaining body records, and any header-related errors.
  */
 export interface HeaderResult {
@@ -116,8 +116,8 @@ export interface HeaderResult {
 
 /**
  * Represents the result of building one {@link RawRecord} into a typed
- * {@link Row} - either the row, or the error that excluded it (see
- * `ParseOptions.ragged`).
+ * {@link Row} — the row, the error that excluded it, or both when
+ * `ParseOptions.ragged` is `'collect'`.
  */
 export interface RowResult {
 	/** Holds the built row, when the record was kept. */
@@ -127,7 +127,7 @@ export interface RowResult {
 }
 
 /**
- * Represents the result of the record-splitting phase - every
+ * Represents the result of the record-splitting phase — every
  * {@link RawRecord} the tokenizer produced plus any {@link CSVError}s
  * collected along the way.
  */
@@ -139,7 +139,7 @@ export interface RecordsResult {
 }
 
 /**
- * Represents the result of a full parse - the assembled {@link CSVTable} plus
+ * Represents the result of a full parse — the assembled {@link CSVTable} plus
  * any {@link CSVError}s collected along the way.
  */
 export interface CSVParseResult {
@@ -152,26 +152,26 @@ export interface CSVParseResult {
 /** Names how an embedded quote character is escaped inside a quoted field. */
 export type EscapeStyle = 'double' | 'backslash'
 
-/** Names the renderer's quoting policy - which fields get wrapped in quotes. */
+/** Names the renderer's quoting policy — which fields get wrapped in quotes. */
 export type QuoteStyle = 'minimal' | 'always' | 'nonnumeric'
 
 /** Names how the parser treats a record whose field count does not match the header. */
 export type RaggedPolicy = 'collect' | 'pad' | 'error'
 
 /**
- * Names a portable storage type for a column - the same literal set
+ * Names a portable storage type for a column — the same literal set
  * `@orkestrel/database` declares as `ColumnStorage` (never imported), so a CSV
  * column map and a database table schema stay drop-in interchangeable.
  */
 export type ColumnType = 'text' | 'integer' | 'real' | 'boolean' | 'json' | 'blob'
 
 /**
- * Represents a CSV's declared columns - a map of column name to its value
+ * Represents a CSV's declared columns — a map of column name to its value
  * {@link ContractShape}.
  *
  * @remarks
  * Structurally identical to `@orkestrel/database`'s `ColumnMap` (never
- * imported) - the same shape map can describe a CSV's columns and a
+ * imported) — the same shape map can describe a CSV's columns and a
  * database table's.
  */
 export type Columns = Readonly<Record<string, ContractShape>>
@@ -181,19 +181,19 @@ export type Columns = Readonly<Record<string, ContractShape>>
  *
  * @remarks
  * `delimiter` is the field separator (`,`); `quote` the quote character
- * (`"`); `escape` how an embedded quote is written inside a quoted field -
+ * (`"`); `escape` how an embedded quote is written inside a quoted field —
  * `'double'` doubles it (`""`), `'backslash'` prefixes it (`\"`); `header`
  * whether the first record names the columns (`true`) or is itself data
  * (`false`, columns become `column1..columnN`); `comment` a leading-character
  * marking a line as a comment to skip (absent, no line is a comment);
- * `blanks` whether a blank line becomes an empty row (`true`) - a line of
+ * `blanks` whether a blank line becomes an empty row (`true`) — a line of
  * only whitespace is never blank, so `trim` does not change what `blanks`
  * drops; `trim` whether leading/trailing whitespace is stripped from
  * every unquoted field (`false`); `ragged` how a record whose field count
- * differs from the header is handled - padded/truncated to fit with the
+ * differs from the header is handled — padded/truncated to fit with the
  * error collected (`'collect'`), silently padded/truncated (`'pad'`), or
  * dropped with the error collected (`'error'`); `infer` whether field values
- * are coerced to their inferred type - integer, real, boolean - instead of
+ * are coerced to their inferred type — integer, real, boolean — instead of
  * staying strings (`false`); `limit` a cap on the number of data records
  * parsed, `0` meaning unbounded; `strict` whether a `CSVError` that would
  * otherwise be collected is thrown instead (`false`).
@@ -214,7 +214,7 @@ export interface ParseOptions {
 
 /**
  * Represents the fully-resolved parse configuration every tokenizer and
- * table-building helper takes - {@link ParseOptions} with every member
+ * table-building helper takes — {@link ParseOptions} with every member
  * defaulted except `comment`, which has no default and stays optional.
  *
  * @remarks
@@ -234,7 +234,7 @@ export type ResolvedParseOptions = Required<Omit<ParseOptions, 'comment'>> &
  * `'backslash'` prefixes it); `newline` the record separator (`\r\n`);
  * `header` whether a header record is emitted (`true`); `columns` the
  * explicit column order to render, defaulting to the first-seen union of
- * keys across all rows; `quotes` the quoting policy - `'minimal'` quotes
+ * keys across all rows; `quotes` the quoting policy — `'minimal'` quotes
  * only fields that need it (containing the delimiter, quote, or a newline),
  * `'always'` quotes every field, `'nonnumeric'` quotes every field whose
  * value is not a plain number; `blank` the text a `null` / `undefined` value
@@ -258,7 +258,7 @@ export interface RenderOptions {
 
 /**
  * Represents the fully-resolved render configuration every quoting and
- * rendering helper takes - {@link RenderOptions} with every member defaulted
+ * rendering helper takes — {@link RenderOptions} with every member defaulted
  * except `columns`, which has no default and stays optional.
  */
 export type ResolvedRenderOptions = Required<Omit<RenderOptions, 'columns'>> &
@@ -268,7 +268,7 @@ export type ResolvedRenderOptions = Required<Omit<RenderOptions, 'columns'>> &
  * Represents the options for {@link CSVInterface.export}.
  *
  * @remarks
- * `key` names the primary-key column the export is keyed by - one of the
+ * `key` names the primary-key column the export is keyed by — one of the
  * table's own columns, defaulting to the first; `columns` overrides the
  * exported column shapes, defaulting to the columns the table was parsed or
  * declared with.
@@ -280,7 +280,7 @@ export interface ExportOptions {
 
 /**
  * Represents a CSV's portable definition, produced by
- * {@link CSVInterface.export} - the unit of schema exchange across
+ * {@link CSVInterface.export} — the unit of schema exchange across
  * environments.
  *
  * @remarks
@@ -307,7 +307,7 @@ export type CSVErrorCode =
 	| 'INVALID_OPTION'
 
 /**
- * Represents a parsed, queryable CSV document - the typed {@link CSVTable}
+ * Represents a parsed, queryable CSV document — the typed {@link CSVTable}
  * plus the query, rewrite, and export operations over it.
  */
 export interface CSVInterface {
@@ -336,12 +336,12 @@ export interface CSVInterface {
 	reduce<T>(callback: (accumulator: T, row: Row, index: number) => T, initial: T): T
 	/**
 	 * Returns a web-standard `ReadableStream` over the table's rows (source
-	 * order) - a lazy, pull-based, backpressure-respecting source that enqueues
+	 * order) — a lazy, pull-based, backpressure-respecting source that enqueues
 	 * one row per `pull`. A fresh, independently-replayable stream every call;
 	 * never mutates the table.
 	 */
 	stream(): ReadableStream<Row>
-	/** Returns the stored {@link CSVTable} - the JSON-serializable projection. */
+	/** Returns the stored {@link CSVTable} — the JSON-serializable projection. */
 	toJSON(): CSVTable
 	/** Produces a portable {@link TableExport} for moving this CSV's schema elsewhere. */
 	export(options?: ExportOptions): TableExport

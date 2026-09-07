@@ -8,7 +8,7 @@ import type { CSVErrorCode } from './types.js'
 // immediately.
 
 /**
- * Represents an error surfaced by the CSV layer - either thrown for a
+ * Represents an error surfaced by the CSV layer — either thrown for a
  * programmer error / `strict`-mode parse failure, or collected into a
  * result's `errors` list.
  *

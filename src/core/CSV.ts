@@ -20,9 +20,9 @@ import { deriveShapes } from './shapers.js'
  * @remarks
  * - **Construction.** Given a `string`, the constructor runs {@link parseCSV}
  *   to build the {@link CSVTable}. Given a {@link CSVTable}, the table is
- *   adopted AS-IS and is NOT re-validated - a caller adopting an untrusted
+ *   adopted AS-IS and is NOT re-validated — a caller adopting an untrusted
  *   value must gate it with a guard first; `errors` is empty in that case.
- * - **Immutable.** {@link map} never mutates the stored table - it returns a
+ * - **Immutable.** {@link map} never mutates the stored table — it returns a
  *   NEW {@link CSV} instance. **Traversal order.** `find` / `filter` /
  *   `reduce` iterate `rows` in table order.
  *
@@ -95,7 +95,7 @@ export class CSV implements CSVInterface {
 	 * @returns A new {@link CSV} wrapping the same columns and the rewritten
 	 * rows; the original instance is never mutated
 	 * @remarks The returned instance carries the SAME `errors` as this
-	 * instance - they describe the source parse, which `map` does not repeat
+	 * instance — they describe the source parse, which `map` does not repeat
 	 *
 	 * @example
 	 * ```ts
@@ -130,7 +130,7 @@ export class CSV implements CSVInterface {
 
 	/**
 	 * Returns a web-standard {@link ReadableStream} over the table's rows
-	 * (source order) - a fresh, pull-based source per call.
+	 * (source order) — a fresh, pull-based source per call.
 	 *
 	 * @returns A `ReadableStream<Row>` that enqueues one row per `pull`
 	 *
@@ -161,10 +161,10 @@ export class CSV implements CSVInterface {
 	}
 
 	/**
-	 * Returns the stored {@link CSVTable} - the JSON-serializable projection.
+	 * Returns the stored {@link CSVTable} — the JSON-serializable projection.
 	 *
 	 * @returns The `{ columns, rows }` table
-	 * @remarks `JSON.stringify(csv)` therefore emits `{ columns, rows }` - the
+	 * @remarks `JSON.stringify(csv)` therefore emits `{ columns, rows }` — the
 	 * interop seam shared structurally with `@orkestrel/database`
 	 *
 	 * @example

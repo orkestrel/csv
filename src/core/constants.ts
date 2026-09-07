@@ -8,7 +8,7 @@ export const BOM = '﻿'
 
 /**
  * Holds the resolved default {@link ParseOptions} (everything but `comment`,
- * which has no default) - what `parseCSV` uses for any option left
+ * which has no default) — what `parseCSV` uses for any option left
  * unspecified.
  *
  * @remarks
@@ -30,7 +30,7 @@ export const DEFAULT_PARSE_OPTIONS: Required<Omit<ParseOptions, 'comment'>> = Ob
 
 /**
  * Holds the resolved default {@link RenderOptions} (everything but `columns`,
- * which has no default) - what `renderCSV` uses for any option left
+ * which has no default) — what `renderCSV` uses for any option left
  * unspecified.
  */
 export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = Object.freeze({
@@ -47,7 +47,7 @@ export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = 
 
 /**
  * Lists the leading characters the OWASP CSV-injection guard treats as
- * formula-triggering - a field starting with any of these is prefixed with a
+ * formula-triggering — a field starting with any of these is prefixed with a
  * protective `'` when `RenderOptions.sanitize` is `true`.
  */
 export const SANITIZE_PREFIXES: ReadonlySet<string> = new Set([
@@ -62,7 +62,7 @@ export const SANITIZE_PREFIXES: ReadonlySet<string> = new Set([
 
 /**
  * Names the prefix used for positional columns (`column1`, `column2`, …) when
- * `ParseOptions.header` is `false`, or a header field is empty - 1-based.
+ * `ParseOptions.header` is `false`, or a header field is empty — 1-based.
  */
 export const POSITIONAL_COLUMN_PREFIX = 'column'
 
@@ -75,19 +75,19 @@ export const SANITIZE_ESCAPE = "'"
 
 /**
  * Names the separator between a disambiguated column name and its collision
- * counter (`name` -> `name_2`, `name_3`, …) - see {@link uniqueName}.
+ * counter (`name` → `name_2`, `name_3`, …) — see {@link uniqueName}.
  */
 export const SUFFIX_SEPARATOR = '_'
 
 /**
- * Matches a canonical integer only - an optional leading `-`, no leading
+ * Matches a canonical integer only — an optional leading `-`, no leading
  * zeros (except the bare digit `0`), digits only. No `+` sign, no
  * whitespace.
  */
 export const INTEGER_PATTERN = /^-?(0|[1-9]\d*)$/
 
 /**
- * Matches a canonical decimal only - an optional leading `-`, an integer
+ * Matches a canonical decimal only — an optional leading `-`, an integer
  * part with no leading zeros (except the bare digit `0`), an optional `.`
  * followed by at least one digit. No scientific notation, no `NaN` /
  * `Infinity`, no decimal comma, no trailing dot.
@@ -96,7 +96,7 @@ export const REAL_PATTERN = /^-?(0|[1-9]\d*)(\.\d+)?$/
 
 /**
  * Matches what the renderer treats as a plain number for the `'nonnumeric'`
- * {@link QuoteStyle} and the sanitize `+` / `-` exemption - like
+ * {@link QuoteStyle} and the sanitize `+` / `-` exemption — like
  * {@link REAL_PATTERN} but also allowing a leading `+`.
  */
 export const NUMERIC_PATTERN = /^[+-]?(0|[1-9]\d*)(\.\d+)?$/
@@ -108,7 +108,7 @@ export const BOOLEAN_TRUE = 'true'
 export const BOOLEAN_FALSE = 'false'
 
 /**
- * Sets the maximum number of {@link CSVError}s collected into a parse result -
+ * Sets the maximum number of {@link CSVError}s collected into a parse result —
  * once reached, error collection stops (earlier records already parsed are
  * kept, later malformations are silently no longer recorded).
  */

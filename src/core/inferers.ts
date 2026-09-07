@@ -14,7 +14,7 @@ import { parseBoolean, parseInteger, parseReal } from './parsers.js'
 
 /**
  * Infers a whole column's {@link ColumnType} conservatively from its raw
- * string values - never `'json'` or `'blob'` (those require an explicit
+ * string values — never `'json'` or `'blob'` (those require an explicit
  * {@link Columns} declaration). Empty-string cells are ignored entirely (they
  * neither confirm nor demote a type); a column with no non-empty cells is
  * `'text'`.
@@ -56,12 +56,12 @@ export function inferColumnType(values: readonly string[]): ColumnType {
 }
 
 /**
- * Coerces one string cell to `type`'s typed representation - the exhaustive
+ * Coerces one string cell to `type`'s typed representation — the exhaustive
  * per-cell dispatch {@link inferRows} applies once a column's type is known.
  *
  * @param value - The raw cell text
  * @param type - The column's inferred {@link ColumnType} (never `'json'` /
- * `'blob'` - those are never inferred, and pass through unchanged like
+ * `'blob'` — those are never inferred, and pass through unchanged like
  * `'text'`)
  * @returns The typed value, through {@link parseInteger} / {@link parseReal} /
  * {@link parseBoolean}; `value` unchanged for `'text'` (or the unreachable
@@ -83,13 +83,13 @@ export function coerceInferred(value: string, type: ColumnType): unknown {
 }
 
 /**
- * Applies whole-column type inference to a built row set - per column, infers
+ * Applies whole-column type inference to a built row set — per column, infers
  * its {@link ColumnType} from its string cells, then coerces every cell of
  * that type through {@link coerceInferred}.
  *
  * @remarks
  * An empty-string cell becomes `undefined` for any non-`'text'` column
- * (there is nothing to coerce). Copy-on-write - `rows` is never mutated;
+ * (there is nothing to coerce). Copy-on-write — `rows` is never mutated;
  * a fresh row set is returned.
  *
  * @param rows - The built rows (from {@link buildRow})
