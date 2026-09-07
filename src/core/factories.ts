@@ -19,12 +19,15 @@ import { CSV } from './CSV.js'
  * @param options - See {@link ParseOptions}
  * @returns A working {@link CSVInterface}
  *
- * @example
+ * @example Parse and query
  * ```ts
- * import { createCSV } from '@src/core'
+ * import { createCSV } from '@orkestrel/csv'
  *
- * const csv = createCSV('a,b\n1,2', { infer: true })
- * csv.rows // [{ a: 1, b: 2 }]
+ * const csv = createCSV('name,age\nAda,36\nGrace,85', { infer: true })
+ * csv.table // { columns: ['name', 'age'], rows: [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }] }
+ *
+ * const ada = csv.find((row) => row.name === 'Ada') // Row | undefined
+ * const adults = csv.filter((row) => Number(row.age) >= 40) // readonly Row[]
  * ```
  */
 export function createCSV(input: string | CSVTable, options?: ParseOptions): CSVInterface {

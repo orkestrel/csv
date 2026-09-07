@@ -1,7 +1,14 @@
 # @orkestrel/csv
 
-A typed CSV toolkit — RFC 4180 parsing and rendering with typed rows, dialect
-control, and structural database interop. Part of the `@orkestrel` line.
+> A types-first RFC 4180 CSV parser and renderer — a hand-written,
+> single-pass tokenizer that turns CSV text into a typed `CSVTable`, and a
+> stateful `CSV` workspace that wraps that table with query, rewrite,
+> streaming, and export operations.
+
+Parse a document with the `createCSV` function, read its rows as plain typed
+records, and write a table back out with `renderCSV`. Dialect control and
+structural interop with `@orkestrel/database` are options on those two calls.
+Part of the `@orkestrel` line.
 
 ## Install
 
