@@ -37,12 +37,13 @@ csv.rows // [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }]
 
 ### Types
 
-The full parse/render/export shape, from [`types.ts`](../src/core/types.ts). A
-`Shape` cell holds an interface's data members as bare names in braces, `?`
-marking an optional member and `plus` introducing its call-signature members,
-and a type alias's own type literal with a union's arms escaped as `\|`. An
+The full parse/render/export shape, from [`types.ts`](../src/core/types.ts). An
 interface's call-signature members are documented under
 [`## Methods`](#methods).
+
+A `Shape` cell holds an interface's data members as bare names in braces, `?`
+marking an optional member and `plus` introducing its call-signature members,
+and a type alias's own type literal with a union's arms escaped as `\|`.
 
 | Type                    | Kind      | Shape                                                                                                                                 | Summary                                                                                                                                                                                                             |
 | ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -87,21 +88,23 @@ into a result's `errors` unless `strict` is set.
 Centralized, frozen data the parser/renderer draw their defaults and
 canonical patterns from, from [`constants.ts`](../src/core/constants.ts).
 
-| Constant                   | Kind  | Value                                                                                                                                                 | Summary                                                                                                                                                                                                                                                          |
-| -------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BOM`                      | const | `'\uFEFF'`                                                                                                                                            | Names the UTF-8 byte-order-mark character, prepended when `RenderOptions.bom` is `true`.                                                                                                                                                                         |
-| `DEFAULT_PARSE_OPTIONS`    | const | `{ delimiter: ',', quote: '"', escape: 'double', header: true, blanks: true, trim: false, ragged: 'collect', infer: false, limit: 0, strict: false }` | Holds the resolved default `ParseOptions` (everything but `comment`, which has no default) — what `parseCSV` uses for any option left unspecified.                                                                                                               |
-| `DEFAULT_RENDER_OPTIONS`   | const | `{ delimiter: ',', quote: '"', escape: 'double', newline: '\r\n', header: true, quotes: 'minimal', blank: '', sanitize: true, bom: false }`           | Holds the resolved default `RenderOptions` (everything but `columns`, which has no default) — what `renderCSV` uses for any option left unspecified.                                                                                                             |
-| `SANITIZE_PREFIXES`        | const | `Set(['=', '+', '-', '@', '\t', '\r', '\n'])`                                                                                                         | Lists the leading characters the OWASP CSV-injection guard treats as formula-triggering — a field starting with any of these is prefixed with a protective `'` when `RenderOptions.sanitize` is `true`.                                                          |
-| `POSITIONAL_COLUMN_PREFIX` | const | `'column'`                                                                                                                                            | Names the prefix used for positional columns (`column1`, `column2`, …) when `ParseOptions.header` is `false`, or a header field is empty — 1-based.                                                                                                              |
-| `SANITIZE_ESCAPE`          | const | `"'"`                                                                                                                                                 | Names the protective prefix `sanitizeField` prepends to a field starting with a formula-triggering character (the OWASP CSV-injection guidance).                                                                                                                 |
-| `SUFFIX_SEPARATOR`         | const | `'_'`                                                                                                                                                 | Names the separator between a disambiguated column name and its collision counter (`name` → `name_2`, `name_3`, …) — see `uniqueName`.                                                                                                                           |
-| `INTEGER_PATTERN`          | const | `/^-?(0\|[1-9]\d*)$/`                                                                                                                                 | Matches a canonical integer only — an optional leading `-`, no leading zeros (except the bare digit `0`), digits only. No `+` sign, no whitespace.                                                                                                               |
-| `REAL_PATTERN`             | const | `/^-?(0\|[1-9]\d*)(\.\d+)?$/`                                                                                                                         | Matches a canonical decimal only — an optional leading `-`, an integer part with no leading zeros (except the bare digit `0`), an optional `.` followed by at least one digit. No scientific notation, no `NaN` / `Infinity`, no decimal comma, no trailing dot. |
-| `NUMERIC_PATTERN`          | const | `/^[+-]?(0\|[1-9]\d*)(\.\d+)?$/`                                                                                                                      | Matches what the renderer treats as a plain number for the `'nonnumeric'` `QuoteStyle` and the sanitize `+` / `-` exemption — like `REAL_PATTERN` but also allowing a leading `+`.                                                                               |
-| `BOOLEAN_TRUE`             | const | `'true'`                                                                                                                                              | Names the canonical serialized form of the boolean `true`.                                                                                                                                                                                                       |
-| `BOOLEAN_FALSE`            | const | `'false'`                                                                                                                                             | Names the canonical serialized form of the boolean `false`.                                                                                                                                                                                                      |
-| `MAX_ERRORS`               | const | `100`                                                                                                                                                 | Sets the maximum number of `CSVError`s collected into a parse result — once reached, error collection stops (earlier records already parsed are kept, later malformations are silently no longer recorded).                                                      |
+A `Shape` cell holds the constant's declared type.
+
+| Constant                   | Kind  | Shape                                      | Summary                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ----- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BOM`                      | const | `string`                                   | Names the UTF-8 byte-order-mark character, `'\uFEFF'`, prepended when `RenderOptions.bom` is `true`.                                                                                                                                                                                                      |
+| `DEFAULT_PARSE_OPTIONS`    | const | `Required<Omit<ParseOptions, 'comment'>>`  | Holds the resolved default `ParseOptions` (everything but `comment`, which has no default) — what `parseCSV` uses for any option left unspecified: `{ delimiter: ',', quote: '"', escape: 'double', header: true, blanks: true, trim: false, ragged: 'collect', infer: false, limit: 0, strict: false }`. |
+| `DEFAULT_RENDER_OPTIONS`   | const | `Required<Omit<RenderOptions, 'columns'>>` | Holds the resolved default `RenderOptions` (everything but `columns`, which has no default) — what `renderCSV` uses for any option left unspecified: `{ delimiter: ',', quote: '"', escape: 'double', newline: '\r\n', header: true, quotes: 'minimal', blank: '', sanitize: true, bom: false }`.         |
+| `SANITIZE_PREFIXES`        | const | `ReadonlySet<string>`                      | Lists the leading characters the OWASP CSV-injection guard treats as formula-triggering — a field starting with any of these is prefixed with a protective `'` when `RenderOptions.sanitize` is `true`.                                                                                                   |
+| `POSITIONAL_COLUMN_PREFIX` | const | `string`                                   | Names the prefix used for positional columns (`column1`, `column2`, …) when `ParseOptions.header` is `false`, or a header field is empty — 1-based, `'column'`.                                                                                                                                           |
+| `SANITIZE_ESCAPE`          | const | `string`                                   | Names the protective prefix `sanitizeField` prepends to a field starting with a formula-triggering character (the OWASP CSV-injection guidance), `"'"`.                                                                                                                                                   |
+| `SUFFIX_SEPARATOR`         | const | `string`                                   | Names the separator between a disambiguated column name and its collision counter (`name` → `name_2`, `name_3`, …) — see `uniqueName`, `'_'`.                                                                                                                                                             |
+| `INTEGER_PATTERN`          | const | `RegExp`                                   | Matches a canonical integer only — an optional leading `-`, no leading zeros (except the bare digit `0`), digits only. No `+` sign, no whitespace.                                                                                                                                                        |
+| `REAL_PATTERN`             | const | `RegExp`                                   | Matches a canonical decimal only — an optional leading `-`, an integer part with no leading zeros (except the bare digit `0`), an optional `.` followed by at least one digit. No scientific notation, no `NaN` / `Infinity`, no decimal comma, no trailing dot.                                          |
+| `NUMERIC_PATTERN`          | const | `RegExp`                                   | Matches what the renderer treats as a plain number for the `'nonnumeric'` `QuoteStyle` and the sanitize `+` / `-` exemption — like `REAL_PATTERN` but also allowing a leading `+`.                                                                                                                        |
+| `BOOLEAN_TRUE`             | const | `string`                                   | Names the canonical serialized form of the boolean `true` — the string `'true'`.                                                                                                                                                                                                                          |
+| `BOOLEAN_FALSE`            | const | `string`                                   | Names the canonical serialized form of the boolean `false` — the string `'false'`.                                                                                                                                                                                                                        |
+| `MAX_ERRORS`               | const | `number`                                   | Sets the maximum number of `CSVError`s collected into a parse result, `100` — once reached, error collection stops (earlier records already parsed are kept, later malformations are silently no longer recorded).                                                                                        |
 
 ### Helpers
 
@@ -186,10 +189,12 @@ whole `Columns` map of them from a table's own cell values.
 Guards from [`validators.ts`](../src/core/validators.ts) — total, never
 throw, return `false` for any off-shape input.
 
-| Guard          | Kind  | Signature           | Summary                                                                                                         |
-| -------------- | ----- | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `isCSVTable`   | const | `Guard<CSVTable>`   | Determines whether an arbitrary value is a valid `CSVTable` — an array of column names plus an array of `Row`s. |
-| `isColumnType` | const | `Guard<ColumnType>` | Determines whether a value is a valid `ColumnType` literal.                                                     |
+In a guard table a `Shape` cell holds the type the guard narrows to.
+
+| Guard          | Kind  | Shape        | Summary                                                                                                         |
+| -------------- | ----- | ------------ | --------------------------------------------------------------------------------------------------------------- |
+| `isCSVTable`   | const | `CSVTable`   | Determines whether an arbitrary value is a valid `CSVTable` — an array of column names plus an array of `Row`s. |
+| `isColumnType` | const | `ColumnType` | Determines whether a value is a valid `ColumnType` literal.                                                     |
 
 ### Classes
 
@@ -341,6 +346,8 @@ Every feature below has a compact, runnable example.
 
 ### Parse and query
 
+Parses a small CSV string with inference, then reads and filters its rows:
+
 ```ts
 import { createCSV } from '@orkestrel/csv'
 
@@ -352,6 +359,8 @@ const adults = csv.filter((row) => Number(row.age) >= 40) // readonly Row[]
 ```
 
 ### Rewrite with `map`, then render back
+
+Rewrites every row through `map`, then renders the new table back to CSV text:
 
 ```ts
 import { createCSV } from '@orkestrel/csv'
@@ -368,6 +377,8 @@ mutated.
 
 ### Reduce into an accumulator
 
+Folds every row into a running total through `reduce`:
+
 ```ts
 import { createCSV } from '@orkestrel/csv'
 
@@ -377,6 +388,8 @@ const total = csv.reduce<number>((sum, row) => sum + Number(row.amount), 0) // 6
 ```
 
 ### Streaming rows
+
+Drains the table through `stream` as a web-standard `ReadableStream`:
 
 ```ts
 import { createCSV } from '@orkestrel/csv'
@@ -393,6 +406,8 @@ for (let result = await reader.read(); !result.done; result = await reader.read(
 
 ### Handling errors without `strict`
 
+Collects a ragged-row malformation into `errors` instead of throwing:
+
 ```ts
 import { createCSV, isCSVError } from '@orkestrel/csv'
 
@@ -404,6 +419,8 @@ for (const error of csv.errors) {
 ```
 
 ### `strict` mode throws the first error
+
+Throws the first collected error immediately when `strict` is set:
 
 ```ts
 import { createCSV, isCSVError } from '@orkestrel/csv'
@@ -417,6 +434,8 @@ try {
 
 ### Exporting a portable schema
 
+Exports the parsed table's inferred schema as a portable `TableExport`:
+
 ```ts
 import { createCSV } from '@orkestrel/csv'
 
@@ -426,6 +445,8 @@ table.schema // a JSON Schema describing every column
 ```
 
 ### Contract-backed row validation
+
+Compiles a `Columns` map into a `ContractInterface` and validates a row against it:
 
 ```ts
 import { createTableContract, columnTypeShape } from '@orkestrel/csv'
@@ -440,6 +461,8 @@ contract.is({ id: 'x', name: 'Ada' }) // false
 
 ### Guarding an adopted table
 
+Guards an unknown value before adopting it as a `CSVTable`:
+
 ```ts
 import { createCSV, isCSVTable } from '@orkestrel/csv'
 
@@ -450,6 +473,8 @@ function adopt(candidate: unknown) {
 ```
 
 ### Tokenizer leaves directly
+
+Calls the tokenizer and inference leaves directly, without going through `parseCSV`:
 
 ```ts
 import {

@@ -3,13 +3,15 @@ import type { ParseOptions, RenderOptions } from './types.js'
 // Centralized, frozen data the parser / renderer draw their defaults and
 // canonical-format patterns from. No behavior lives here.
 
-/** Names the UTF-8 byte-order-mark character, prepended when `RenderOptions.bom` is `true`. */
+/** Names the UTF-8 byte-order-mark character, `'\uFEFF'`, prepended when `RenderOptions.bom` is `true`. */
 export const BOM = '﻿'
 
 /**
  * Holds the resolved default {@link ParseOptions} (everything but `comment`,
  * which has no default) — what `parseCSV` uses for any option left
- * unspecified.
+ * unspecified: `{ delimiter: ',', quote: '"', escape: 'double', header: true,
+ * blanks: true, trim: false, ragged: 'collect', infer: false, limit: 0,
+ * strict: false }`.
  *
  * @remarks
  * An absent `comment` is what leaves comment handling off, so this table
@@ -31,7 +33,9 @@ export const DEFAULT_PARSE_OPTIONS: Required<Omit<ParseOptions, 'comment'>> = Ob
 /**
  * Holds the resolved default {@link RenderOptions} (everything but `columns`,
  * which has no default) — what `renderCSV` uses for any option left
- * unspecified.
+ * unspecified: `{ delimiter: ',', quote: '"', escape: 'double', newline:
+ * '\r\n', header: true, quotes: 'minimal', blank: '', sanitize: true, bom:
+ * false }`.
  */
 export const DEFAULT_RENDER_OPTIONS: Required<Omit<RenderOptions, 'columns'>> = Object.freeze({
 	delimiter: ',',
@@ -62,20 +66,21 @@ export const SANITIZE_PREFIXES: ReadonlySet<string> = new Set([
 
 /**
  * Names the prefix used for positional columns (`column1`, `column2`, …) when
- * `ParseOptions.header` is `false`, or a header field is empty — 1-based.
+ * `ParseOptions.header` is `false`, or a header field is empty — 1-based,
+ * `'column'`.
  */
 export const POSITIONAL_COLUMN_PREFIX = 'column'
 
 /**
  * Names the protective prefix {@link sanitizeField} prepends to a field
  * starting with a formula-triggering character (the OWASP CSV-injection
- * guidance).
+ * guidance), `"'"`.
  */
 export const SANITIZE_ESCAPE = "'"
 
 /**
  * Names the separator between a disambiguated column name and its collision
- * counter (`name` → `name_2`, `name_3`, …) — see {@link uniqueName}.
+ * counter (`name` → `name_2`, `name_3`, …) — see {@link uniqueName}, `'_'`.
  */
 export const SUFFIX_SEPARATOR = '_'
 
@@ -101,15 +106,15 @@ export const REAL_PATTERN = /^-?(0|[1-9]\d*)(\.\d+)?$/
  */
 export const NUMERIC_PATTERN = /^[+-]?(0|[1-9]\d*)(\.\d+)?$/
 
-/** Names the canonical serialized form of the boolean `true`. */
+/** Names the canonical serialized form of the boolean `true` — the string `'true'`. */
 export const BOOLEAN_TRUE = 'true'
 
-/** Names the canonical serialized form of the boolean `false`. */
+/** Names the canonical serialized form of the boolean `false` — the string `'false'`. */
 export const BOOLEAN_FALSE = 'false'
 
 /**
- * Sets the maximum number of {@link CSVError}s collected into a parse result —
- * once reached, error collection stops (earlier records already parsed are
- * kept, later malformations are silently no longer recorded).
+ * Sets the maximum number of {@link CSVError}s collected into a parse result,
+ * `100` — once reached, error collection stops (earlier records already
+ * parsed are kept, later malformations are silently no longer recorded).
  */
 export const MAX_ERRORS = 100

@@ -1,6 +1,6 @@
 // The consumer-side guides-parity drop-in: runs `@orkestrel/guide`'s checks against
-// this repo's own `guides/README.md` manifest. The constants that follow and the
-// `flagship fences` block are this package's own; a sibling package rewrites each of them.
+// this repo's own `guides/README.md` manifest. The constants that follow are this
+// package's own, as is the executed section that closes the file.
 
 import { describe, expect, it } from 'vitest'
 import {
@@ -46,7 +46,7 @@ const MODULES = Object.freeze({ '@orkestrel/csv': 'src/core', '@src/core': 'src/
  *
  * A class that one-class-per-file evicted from its single consumer cannot become a
  * local, so it stays exported without being public. Naming it here is what makes that
- * intentional rather than forgotten — and the second assertion below fails when a name
+ * intentional rather than forgotten — and the assertion that follows it fails when a name
  * here stops being stranded, so the list cannot rot.
  */
 const INTERNAL: readonly string[] = Object.freeze([])
@@ -113,9 +113,7 @@ it('pairs at least one example title across the guide and the source', () => {
 // against `undefined` first, so a file that lost its blockquote reports that rather
 // than reporting two absences as agreement.
 it('opens the README with the guide tagline', () => {
-	const pitch = createGuide(
-		requireValue(files[PACKAGE_README], `Missing file: ${PACKAGE_README}`),
-	).tagline()
+	const pitch = createGuide(requireValue(files['README.md'], 'Missing file: README.md')).tagline()
 	const tagline = createGuide(
 		requireValue(files[GUIDE_SPEC], `Missing file: ${GUIDE_SPEC}`),
 	).tagline()
