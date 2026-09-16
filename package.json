@@ -1,6 +1,6 @@
 {
 	"name": "@orkestrel/csv",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"description": "A typed CSV toolkit — RFC 4180 parsing and rendering with typed rows, dialect control, and structural database interop. Part of the @orkestrel line.",
 	"keywords": [
 		"csv",
