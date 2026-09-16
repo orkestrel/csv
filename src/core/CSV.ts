@@ -7,7 +7,7 @@ import type {
 	Row,
 	TableExport,
 } from './types.js'
-import { createContract, objectShape } from '@orkestrel/contract'
+import { createContract, isString, objectShape } from '@orkestrel/contract'
 import { CSVError } from './errors.js'
 import { parseCSV } from './parsers.js'
 import { deriveShapes } from './shapers.js'
@@ -39,8 +39,7 @@ export class CSV implements CSVInterface {
 	#result: CSVParseResult
 
 	constructor(input: string | CSVTable, options?: ParseOptions) {
-		this.#result =
-			typeof input === 'string' ? parseCSV(input, options) : { table: input, errors: [] }
+		this.#result = isString(input) ? parseCSV(input, options) : { table: input, errors: [] }
 	}
 
 	/** Returns the stored {@link CSVTable} (columns + rows). */

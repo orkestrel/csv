@@ -25,6 +25,15 @@ import {
 	SANITIZE_PREFIXES,
 	SUFFIX_SEPARATOR,
 } from './constants.js'
+import {
+	attempt,
+	isArray,
+	isBigInt,
+	isBoolean,
+	isInteger,
+	isNumber,
+	isString,
+} from '@orkestrel/contract'
 import { CSVError } from './errors.js'
 
 // Pure, total helper leaves the parser / renderer compose.
@@ -84,7 +93,7 @@ export function resolveParseOptions(options?: ParseOptions): ResolvedParseOption
 	assertValidSeparators(resolved.delimiter, resolved.quote)
 	if (resolved.comment === '')
 		throw new CSVError('INVALID_OPTION', 'comment must not be an empty string')
-	if (!Number.isInteger(resolved.limit) || resolved.limit < 0)
+	if (!isInteger(resolved.limit) || resolved.limit < 0)
 		throw new CSVError('INVALID_OPTION', 'limit must be a non-negative integer')
 	return resolved
 }
@@ -207,14 +216,10 @@ export function sanitizeField(field: string): string {
  */
 export function serializeCell(value: unknown, blank: string): string {
 	if (value === null || value === undefined) return blank
-	if (typeof value === 'string') return value
-	if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint')
-		return String(value)
-	try {
-		return JSON.stringify(value) ?? blank
-	} catch {
-		return blank
-	}
+	if (isString(value)) return value
+	if (isNumber(value) || isBoolean(value) || isBigInt(value)) return String(value)
+	const outcome = attempt(() => JSON.stringify(value))
+	return outcome.success && isString(outcome.value) ? outcome.value : blank
 }
 
 /**
@@ -384,7 +389,7 @@ export function quoteStyleToPolicy(
  * Narrows a `CSVTable | readonly Row[]` union to its row-list member.
  *
  * @remarks
- * `Array.isArray` alone does not narrow a `readonly Row[]` union member (a
+ * A native array test alone does not narrow a `readonly Row[]` union member (a
  * TypeScript limitation with readonly arrays) — an explicit type predicate
  * narrows reliably in both branches.
  *
@@ -392,7 +397,7 @@ export function quoteStyleToPolicy(
  * @returns True if `source` is a plain row list; false otherwise
  */
 export function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
-	return Array.isArray(source)
+	return isArray(source)
 }
 
 /**

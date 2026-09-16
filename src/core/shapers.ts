@@ -8,6 +8,9 @@ import {
 	numberShape,
 	objectShape,
 	recordShape,
+	isBoolean,
+	isNumber,
+	isString,
 	stringShape,
 } from '@orkestrel/contract'
 import { inferColumnType } from './inferers.js'
@@ -116,13 +119,13 @@ export function deriveShapes(table: CSVTable): Columns {
 			.filter((value) => value !== undefined && value !== '')
 		if (values.length === 0) {
 			columns[column] = columnTypeShape('text')
-		} else if (values.every((value): value is string => typeof value === 'string')) {
+		} else if (values.every((value): value is string => isString(value))) {
 			columns[column] = columnTypeShape(inferColumnType(values))
-		} else if (values.every((value) => typeof value === 'number')) {
+		} else if (values.every((value) => isNumber(value))) {
 			columns[column] = columnTypeShape(
 				values.every((value) => Number.isSafeInteger(value)) ? 'integer' : 'real',
 			)
-		} else if (values.every((value) => typeof value === 'boolean')) {
+		} else if (values.every((value) => isBoolean(value))) {
 			columns[column] = columnTypeShape('boolean')
 		} else {
 			columns[column] = columnTypeShape('json')

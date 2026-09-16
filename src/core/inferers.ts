@@ -1,4 +1,5 @@
 import type { ColumnType, Row } from './types.js'
+import { isString } from '@orkestrel/contract'
 import { BOOLEAN_FALSE, BOOLEAN_TRUE, INTEGER_PATTERN, REAL_PATTERN } from './constants.js'
 import { parseBoolean, parseInteger, parseReal } from './parsers.js'
 
@@ -106,7 +107,7 @@ export function inferRows(rows: readonly Row[], columns: readonly string[]): rea
 		const values: string[] = []
 		for (const row of rows) {
 			const value = row[column]
-			if (typeof value === 'string') values.push(value)
+			if (isString(value)) values.push(value)
 		}
 		return inferColumnType(values)
 	})
@@ -117,7 +118,7 @@ export function inferRows(rows: readonly Row[], columns: readonly string[]): rea
 		columns.forEach((column, position) => {
 			const value = row[column]
 			const type = types[position]
-			if (typeof value !== 'string' || type === undefined) return
+			if (!isString(value) || type === undefined) return
 			next[column] = value === '' && type !== 'text' ? undefined : coerceInferred(value, type)
 		})
 		return next

@@ -1,4 +1,5 @@
 import type { CSVErrorCode } from './types.js'
+import { isInstance } from '@orkestrel/contract'
 
 // Invalid operations and programmer errors `throw`, always a `CSVError`
 // carrying a machine-readable `code` so a `catch` branches on `error.code`
@@ -61,5 +62,5 @@ export class CSVError extends Error {
  * ```
  */
 export function isCSVError(value: unknown): value is CSVError {
-	return value instanceof CSVError
+	return isInstance(value, CSVError)
 }
