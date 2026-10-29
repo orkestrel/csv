@@ -9,6 +9,27 @@
 // same starting point.
 export const TEST_SEED = 42
 
+/** Describes a row carrying a string name. */
+export interface NamedRow {
+	readonly name: string
+}
+
+/** Accepts a record carrying a string `name`, and nothing else. */
+export function isNamedRow(value: unknown): value is NamedRow {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'name' in value &&
+		typeof Reflect.get(value, 'name') === 'string'
+	)
+}
+
+/** Reports whether a numeric read returns the original text. */
+export function survivesNumericRead(text: string): boolean {
+	const value = Number(text)
+	return Number.isFinite(value) && String(value) === text
+}
+
 // ── Assert-and-narrow ──────────────────────────────────────────────────────────
 
 /**

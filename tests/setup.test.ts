@@ -12,6 +12,7 @@
 // file drives no parser and no renderer: what the package does with these documents is proved
 // by the suites that consume them.
 
+import { isEmptyString as isBlank, isString as isText } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
 import {
 	assertAndNarrow,
@@ -19,42 +20,10 @@ import {
 	buildMixedNewlineCSV,
 	buildQuotedField,
 	buildRaggedCSV,
+	isNamedRow,
+	survivesNumericRead,
 	TEST_SEED,
 } from './setup.js'
-
-/** A row shape for the accepting case, so the narrowed result is read without a cast. */
-interface NamedRow {
-	readonly name: string
-}
-
-/** Accepts a record carrying a string `name`, and nothing else. */
-function isNamedRow(value: unknown): value is NamedRow {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'name' in value &&
-		typeof Reflect.get(value, 'name') === 'string'
-	)
-}
-
-/** Accepts text, and nothing else. */
-function isText(value: unknown): value is string {
-	return typeof value === 'string'
-}
-
-/**
- * Reports whether a naive numeric read of `text` returns the same text — the coercion an
- * inference trap must defeat.
- */
-function survivesNumericRead(text: string): boolean {
-	const value = Number(text)
-	return Number.isFinite(value) && String(value) === text
-}
-
-/** Reports whether `line` carries no characters. */
-function isBlank(line: string): boolean {
-	return line.length === 0
-}
 
 describe('TEST_SEED', () => {
 	it('is a non-negative safe integer, so every suite seeds a generator from the same value', () => {
