@@ -792,6 +792,7 @@ describe('installed package consumer', () => {
 			`import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 const copies = [await import(process.argv[2]), createRequire(import.meta.url)(process.argv[2]), await import(process.argv[3])]
+assert.equal(new Set(copies.map((entry) => entry.CSVError)).size, copies.length)
 for (const owner of copies) {
 	const error = new owner.CSVError('BAD_QUOTE', 'quoted field', { line: 1, column: 2, offset: 1 }, { field: 'name' })
 	class Derived extends owner.CSVError {}

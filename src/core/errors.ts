@@ -1,5 +1,5 @@
 import type { CSVErrorCode } from './types.js'
-import { holds, INTRINSICS, isRecord } from '@orkestrel/contract'
+import { holds, INTRINSICS, isFunction, isObject } from '@orkestrel/contract'
 
 // Invalid operations and programmer errors `throw`, always a `CSVError`
 // carrying a machine-readable `code` so a `catch` branches on `error.code`
@@ -84,7 +84,7 @@ export function isCSVError(value: unknown): value is CSVError {
 			return false
 		const context: unknown = INTRINSICS.reflect.read(value, 'context')
 		return (
-			(context === undefined || isRecord(context)) &&
+			(context === undefined || isObject(context) || isFunction(context)) &&
 			['line', 'column', 'offset'].every((key) => {
 				const member: unknown = INTRINSICS.reflect.read(value, key)
 				return member === undefined || typeof member === 'number'
