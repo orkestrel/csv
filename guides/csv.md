@@ -256,6 +256,11 @@ not a separate parser: call `renderCSV` with `delimiter: '\t'`.
 
 ## Total parsing and the error model
 
+`isCSVError` recognizes the error's own identity brand, declared code, and
+optional location and context members across package copies. It accepts subclass
+instances without requiring an exact name and refuses transparent proxies,
+unbranded look-alikes, and plain objects carrying only the brand.
+
 `parseCSV` never throws on malformed DATA — every malformation (an
 unterminated quote, a bad quote placement, a ragged row, a duplicate or
 empty header, the record limit) is collected as a `CSVError` into the

@@ -41,18 +41,15 @@ export function inferColumnType(values: readonly string[]): ColumnType {
 
 	if (cells.every((value) => value === BOOLEAN_TRUE || value === BOOLEAN_FALSE)) return 'boolean'
 
-	let hasDecimal = false
-	for (const value of cells) {
-		if (INTEGER_PATTERN.test(value)) {
-			if (!Number.isSafeInteger(Number(value))) return 'text'
-			continue
-		}
-		if (REAL_PATTERN.test(value)) {
-			hasDecimal = true
-			continue
-		}
+	if (
+		cells.some((value) =>
+			INTEGER_PATTERN.test(value)
+				? !Number.isSafeInteger(Number(value))
+				: !REAL_PATTERN.test(value),
+		)
+	)
 		return 'text'
-	}
+	const hasDecimal = cells.some((value) => !INTEGER_PATTERN.test(value))
 	return hasDecimal ? 'real' : 'integer'
 }
 

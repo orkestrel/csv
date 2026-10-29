@@ -4,7 +4,6 @@ import type {
 	HeaderResult,
 	ParseOptions,
 	Position,
-	RawField,
 	RawRecord,
 	RecordScan,
 	RecordsResult,
@@ -138,13 +137,10 @@ export function resolveRenderOptions(options?: RenderOptions): ResolvedRenderOpt
  */
 export function uniqueName(name: string, taken: ReadonlySet<string>): string {
 	if (!taken.has(name)) return name
-	let suffix = 2
-	let candidate = `${name}${SUFFIX_SEPARATOR}${suffix}`
-	while (taken.has(candidate)) {
-		suffix += 1
-		candidate = `${name}${SUFFIX_SEPARATOR}${suffix}`
-	}
-	return candidate
+	const suffix = Array.from({ length: taken.size + 1 }, (_, index) => index + 2).find(
+		(index) => !taken.has(`${name}${SUFFIX_SEPARATOR}${index}`),
+	)
+	return `${name}${SUFFIX_SEPARATOR}${suffix}`
 }
 
 /**
@@ -162,15 +158,10 @@ export function uniqueName(name: string, taken: ReadonlySet<string>): string {
  * ```
  */
 export function uniqueColumns(names: readonly string[]): readonly string[] {
-	const kept: string[] = []
-	const seen = new Set<string>()
-	for (const [index, name] of names.entries()) {
+	return Iterator.from(names.entries()).reduce<readonly string[]>((kept, [index, name]) => {
 		const base = name.trim() === '' ? `${POSITIONAL_COLUMN_PREFIX}${index + 1}` : name
-		const unique = uniqueName(base, seen)
-		kept.push(unique)
-		seen.add(unique)
-	}
-	return kept
+		return [...kept, uniqueName(base, new Set(kept))]
+	}, [])
 }
 
 /**
@@ -522,13 +513,12 @@ export function scanComment(
 ): Position | undefined {
 	if (options.comment === undefined) return undefined
 	if (!source.startsWith(options.comment, position.offset)) return undefined
-	let cursor = position
-	while (cursor.offset < source.length) {
-		const brk = scanBreak(source, cursor)
-		if (brk !== undefined) return brk
-		cursor = advancePosition(cursor)
-	}
-	return cursor
+	const distance = source.slice(position.offset).search(/[\r\n]/u)
+	const cursor = advancePosition(
+		position,
+		distance < 0 ? source.length - position.offset : distance,
+	)
+	return scanBreak(source, cursor) ?? cursor
 }
 
 /**
@@ -556,17 +546,21 @@ export function scanUnquoted(
 	position: Position,
 	options: ResolvedParseOptions,
 ): FieldScan {
-	let cursor = position
-	let value = ''
-	const errors: CSVError[] = []
-	while (cursor.offset < source.length) {
+	const steps: FieldScan[] = []
+	while (true) {
+		const cursor = steps.at(-1)?.next ?? position
+		if (!(cursor.offset < source.length)) break
 		const char = source.charAt(cursor.offset)
 		if (char === options.delimiter || isBreakChar(char)) break
-		if (char === options.quote)
-			errors.push(new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', cursor))
-		value += char
-		cursor = advancePosition(cursor)
+		const errors =
+			char === options.quote
+				? [new CSVError('BAD_QUOTE', 'quote character inside an unquoted field', cursor)]
+				: []
+		steps.push({ field: { value: char, quoted: false }, next: advancePosition(cursor), errors })
 	}
+	const value = steps.map((step) => step.field.value).join('')
+	const errors = steps.flatMap((step) => step.errors)
+	const cursor = steps.at(-1)?.next ?? position
 	const trimmed = options.trim ? value.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '') : value
 	return { field: { value: trimmed, quoted: false }, next: cursor, errors }
 }
@@ -602,11 +596,12 @@ export function scanQuoted(
 	options: ResolvedParseOptions,
 ): FieldScan {
 	const open = position
-	let cursor = advancePosition(position) // consume the opening quote
-	let value = ''
+	const steps: Array<{ readonly value: string; readonly next: Position }> = []
 	while (true) {
+		const cursor = steps.at(-1)?.next ?? advancePosition(position)
 		if (cursor.offset >= source.length) {
 			const error = new CSVError('UNTERMINATED_QUOTE', 'quoted field never closed', open)
+			const value = steps.map((step) => step.value).join('')
 			return { field: { value, quoted: true }, next: cursor, errors: [error] }
 		}
 		const char = source.charAt(cursor.offset)
@@ -614,55 +609,55 @@ export function scanQuoted(
 		if (options.escape === 'backslash' && char === '\\') {
 			const after = source.charAt(cursor.offset + 1)
 			if (after === options.quote || after === '\\') {
-				value += after
-				cursor = advancePosition(cursor, 2)
+				steps.push({ value: after, next: advancePosition(cursor, 2) })
 				continue
 			}
-			value += char
-			cursor = advancePosition(cursor)
+			steps.push({ value: char, next: advancePosition(cursor) })
 			continue
 		}
 
 		if (char === options.quote) {
 			if (options.escape === 'double' && source.charAt(cursor.offset + 1) === options.quote) {
-				value += options.quote
-				cursor = advancePosition(cursor, 2)
+				steps.push({ value: options.quote, next: advancePosition(cursor, 2) })
 				continue
 			}
-			cursor = advancePosition(cursor) // consume the closing quote
-			if (cursor.offset >= source.length)
-				return { field: { value, quoted: true }, next: cursor, errors: [] }
-			const after = source.charAt(cursor.offset)
+			const next = advancePosition(cursor)
+			const value = steps.map((step) => step.value).join('')
+			if (next.offset >= source.length) return { field: { value, quoted: true }, next, errors: [] }
+			const after = source.charAt(next.offset)
 			if (after === options.delimiter || isBreakChar(after))
-				return { field: { value, quoted: true }, next: cursor, errors: [] }
-			const error = new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', cursor)
-			let tail = ''
-			while (
-				cursor.offset < source.length &&
-				source.charAt(cursor.offset) !== options.delimiter &&
-				!isBreakChar(source.charAt(cursor.offset))
-			) {
-				tail += source.charAt(cursor.offset)
-				cursor = advancePosition(cursor)
+				return { field: { value, quoted: true }, next, errors: [] }
+			const error = new CSVError('BAD_QUOTE', 'unexpected character after a closing quote', next)
+			const remainder = source.slice(next.offset)
+			const boundary = Iterator.from(remainder.matchAll(/[\s\S]/g)).find(
+				(match) => match[0] === options.delimiter || isBreakChar(match[0]),
+			)
+			const tail = remainder.slice(0, boundary?.index)
+			return {
+				field: { value: value + tail, quoted: true },
+				next: advancePosition(next, tail.length),
+				errors: [error],
 			}
-			return { field: { value: value + tail, quoted: true }, next: cursor, errors: [error] }
 		}
 
 		if (isBreakChar(char)) {
 			// Not scanBreak: a quoted field keeps the literal break characters in
 			// its value, and scanBreak only advances the cursor without yielding them.
 			if (char === '\r' && source.charAt(cursor.offset + 1) === '\n') {
-				value += '\r\n'
-				cursor = { offset: cursor.offset + 2, line: cursor.line + 1, column: 1 }
+				steps.push({
+					value: '\r\n',
+					next: { offset: cursor.offset + 2, line: cursor.line + 1, column: 1 },
+				})
 			} else {
-				value += char
-				cursor = { offset: cursor.offset + 1, line: cursor.line + 1, column: 1 }
+				steps.push({
+					value: char,
+					next: { offset: cursor.offset + 1, line: cursor.line + 1, column: 1 },
+				})
 			}
 			continue
 		}
 
-		value += char
-		cursor = advancePosition(cursor)
+		steps.push({ value: char, next: advancePosition(cursor) })
 	}
 }
 
@@ -706,27 +701,21 @@ export function scanRecord(
 	position: Position,
 	options: ResolvedParseOptions,
 ): RecordScan {
-	const fields: RawField[] = []
-	const errors: CSVError[] = []
-	let cursor = position
+	const scans: FieldScan[] = []
 	while (true) {
+		const cursor = scans.length === 0 ? position : advancePosition(scans.at(-1)?.next ?? position)
 		const scan = scanField(source, cursor, options)
-		fields.push(scan.field)
-		errors.push(...scan.errors)
-		cursor = scan.next
-		if (cursor.offset >= source.length) break
-		if (source.charAt(cursor.offset) === options.delimiter) {
-			cursor = advancePosition(cursor)
+		scans.push(scan)
+		if (scan.next.offset < source.length && source.charAt(scan.next.offset) === options.delimiter)
 			continue
+		const next =
+			scan.next.offset >= source.length ? scan.next : (scanBreak(source, scan.next) ?? scan.next)
+		return {
+			record: { fields: scans.map((field) => field.field), start: position },
+			next,
+			errors: scans.flatMap((field) => field.errors),
 		}
-		const brk = scanBreak(source, cursor)
-		if (brk !== undefined) {
-			cursor = brk
-			break
-		}
-		break
 	}
-	return { record: { fields, start: position }, next: cursor, errors }
 }
 
 /**
@@ -758,45 +747,61 @@ export function scanRecord(
 export function readRecords(input: string, options?: ParseOptions): RecordsResult {
 	const resolved = resolveParseOptions(options)
 	const text = input.startsWith(BOM) ? input.slice(BOM.length) : input
-	const errors: CSVError[] = []
-	const records: RawRecord[] = []
-
-	let position: Position = { offset: 0, line: 1, column: 1 }
-	let emitted = 0
-	let stopped = false
-
-	while (position.offset < text.length && !stopped) {
+	const steps: Array<
+		RecordsResult & { readonly next: Position; readonly count: number; readonly faults: number }
+	> = []
+	while (true) {
+		const previous = steps.at(-1)
+		const position = previous?.next ?? { offset: 0, line: 1, column: 1 }
+		if (position.offset >= text.length) break
 		const recordStart = position
 
 		const afterComment = scanComment(text, position, resolved)
 		if (afterComment !== undefined) {
-			position = afterComment
+			steps.push({
+				next: afterComment,
+				records: [],
+				errors: [],
+				count: previous?.count ?? 0,
+				faults: previous?.faults ?? 0,
+			})
 			continue
 		}
 
 		const scan = scanRecord(text, position, resolved)
-		for (const error of scan.errors) {
-			if (errors.length < MAX_ERRORS) errors.push(error)
-		}
-		position = scan.next
+		const errors = scan.errors.slice(0, MAX_ERRORS - (previous?.faults ?? 0))
 
 		const first = scan.record.fields[0]
 		const isBlank =
 			scan.record.fields.length === 1 && first !== undefined && !first.quoted && first.value === ''
-		if (isBlank && !resolved.blanks) continue
+		const omitted = isBlank && !resolved.blanks
 
-		if (resolved.limit > 0 && emitted >= resolved.limit) {
-			if (errors.length < MAX_ERRORS)
+		if (!omitted && resolved.limit > 0 && (previous?.count ?? 0) >= resolved.limit) {
+			if ((previous?.faults ?? 0) + errors.length < MAX_ERRORS)
 				errors.push(new CSVError('LIMIT_EXCEEDED', 'record limit exceeded', recordStart))
-			stopped = true
+			steps.push({
+				next: scan.next,
+				records: [],
+				errors,
+				count: previous?.count ?? 0,
+				faults: (previous?.faults ?? 0) + errors.length,
+			})
 			break
 		}
 
-		records.push(scan.record)
-		emitted += 1
+		steps.push({
+			next: scan.next,
+			records: omitted ? [] : [scan.record],
+			errors,
+			count: (previous?.count ?? 0) + (omitted ? 0 : 1),
+			faults: (previous?.faults ?? 0) + errors.length,
+		})
 	}
 
-	return { records, errors }
+	return {
+		records: steps.flatMap((step) => step.records),
+		errors: steps.flatMap((step) => step.errors),
+	}
 }
 
 /**
@@ -889,7 +894,7 @@ export function buildRow(
 	const fields = record.fields
 	const actual = fields.length
 	const row: Row = Object.create(null)
-	for (let position = 0; position < width; position += 1) {
+	for (const position of Array.from({ length: width }).keys()) {
 		const columnName = columns[position]
 		if (columnName === undefined) continue
 		const field = fields[position]

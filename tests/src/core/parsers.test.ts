@@ -248,8 +248,7 @@ describe('parseCSV', () => {
 	})
 
 	it('caps collected errors at MAX_ERRORS while table-building degradation stays unaffected', () => {
-		const rows: string[] = []
-		for (let index = 0; index < MAX_ERRORS + 10; index += 1) rows.push('1,2')
+		const rows = Array.from({ length: MAX_ERRORS + 10 }, () => '1,2')
 		const input = `a,b,c\n${rows.join('\n')}`
 		const { table, errors } = parseCSV(input, { ragged: 'collect' })
 		expect(errors).toHaveLength(MAX_ERRORS)

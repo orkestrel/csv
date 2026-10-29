@@ -1,5 +1,5 @@
 import type { CSVErrorCode } from './types.js'
-import { isInstance } from '@orkestrel/contract'
+import { holds, INTRINSICS, isRecord } from '@orkestrel/contract'
 
 // Invalid operations and programmer errors `throw`, always a `CSVError`
 // carrying a machine-readable `code` so a `catch` branches on `error.code`
@@ -37,6 +37,7 @@ export class CSVError extends Error {
 		context?: Readonly<Record<string, unknown>>,
 	) {
 		super(message)
+		INTRINSICS.define(this, Symbol.for('@orkestrel/csv.CSVError'), { value: this })
 		this.name = 'CSVError'
 		this.code = code
 		if (location?.line !== undefined) this.line = location.line
@@ -48,6 +49,10 @@ export class CSVError extends Error {
 
 /**
  * Narrows an unknown caught value to a {@link CSVError}.
+ *
+ * @remarks
+ * Recognizes branded errors across package copies and subclasses by their code
+ * and declared members. Refuses transparent proxies and unbranded look-alikes.
  *
  * @param value - The value to test (typically a `catch` binding)
  * @returns True if `value` is a {@link CSVError}; false otherwise
@@ -62,5 +67,28 @@ export class CSVError extends Error {
  * ```
  */
 export function isCSVError(value: unknown): value is CSVError {
-	return isInstance(value, CSVError)
+	return holds(() => {
+		if (!(value instanceof Error) || INTRINSICS.prototype(value) === Error.prototype) return false
+		if (INTRINSICS.describe(value, Symbol.for('@orkestrel/csv.CSVError'))?.value !== value)
+			return false
+		const code: unknown = INTRINSICS.reflect.read(value, 'code')
+		if (
+			code !== 'UNTERMINATED_QUOTE' &&
+			code !== 'BAD_QUOTE' &&
+			code !== 'RAGGED_ROW' &&
+			code !== 'DUPLICATE_HEADER' &&
+			code !== 'EMPTY_HEADER' &&
+			code !== 'LIMIT_EXCEEDED' &&
+			code !== 'INVALID_OPTION'
+		)
+			return false
+		const context: unknown = INTRINSICS.reflect.read(value, 'context')
+		return (
+			(context === undefined || isRecord(context)) &&
+			['line', 'column', 'offset'].every((key) => {
+				const member: unknown = INTRINSICS.reflect.read(value, key)
+				return member === undefined || typeof member === 'number'
+			})
+		)
+	})
 }

@@ -124,7 +124,7 @@ describe('resolveParseOptions', () => {
 		expect(isCSVError(error) && error.code === 'INVALID_OPTION').toBe(true)
 	})
 
-	it.each(['\r', '\n', '﻿'])('throws INVALID_OPTION when delimiter is %j', (bad) => {
+	it.each(['\r', '\n', '\uFEFF'])('throws INVALID_OPTION when delimiter is %j', (bad) => {
 		const error = captureError(() => resolveParseOptions({ delimiter: bad }))
 		expect(isCSVError(error) && error.code === 'INVALID_OPTION').toBe(true)
 	})
@@ -429,7 +429,7 @@ describe('renderCSV', () => {
 
 	it('prepends the BOM when bom is true', () => {
 		const csv = renderCSV({ columns: ['a'], rows: [{ a: 1 }] }, { bom: true, header: false })
-		expect(csv.startsWith('﻿')).toBe(true)
+		expect(csv.startsWith('\uFEFF')).toBe(true)
 	})
 
 	it.each([
@@ -745,7 +745,7 @@ describe('readRecords', () => {
 	})
 
 	it('strips exactly one leading BOM; a mid-file BOM stays as data', () => {
-		const bom = '﻿'
+		const bom = '\uFEFF'
 		const { records } = readRecords(`${bom}a,b\n1,${bom}2`)
 		expect(records[0]?.fields).toEqual([
 			{ value: 'a', quoted: false },
@@ -827,8 +827,7 @@ describe('readRecords', () => {
 	})
 
 	it('caps collected errors at MAX_ERRORS', () => {
-		const lines: string[] = []
-		for (let index = 0; index < MAX_ERRORS + 10; index += 1) lines.push('"ab"c')
+		const lines = Array.from({ length: MAX_ERRORS + 10 }, () => '"ab"c')
 		const { errors } = readRecords(lines.join('\n'))
 		expect(errors).toHaveLength(MAX_ERRORS)
 	})
@@ -863,7 +862,7 @@ describe('readRecords', () => {
 
 	it('returns an empty result for empty input (or input that is only a BOM)', () => {
 		expect(readRecords('')).toEqual({ records: [], errors: [] })
-		expect(readRecords('﻿')).toEqual({ records: [], errors: [] })
+		expect(readRecords('\uFEFF')).toEqual({ records: [], errors: [] })
 	})
 
 	it("reports each record's start position", () => {

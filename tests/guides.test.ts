@@ -225,7 +225,9 @@ await new GuideCommand({
 			const csv = createCSV('a\n1\n2\n3')
 			const reader = csv.stream().getReader()
 			const values: string[] = []
-			for (let result = await reader.read(); !result.done; result = await reader.read()) {
+			while (true) {
+				const result = await reader.read()
+				if (result.done) break
 				values.push(String(result.value.a))
 			}
 

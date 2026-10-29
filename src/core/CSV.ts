@@ -143,12 +143,10 @@ export class CSV implements CSVInterface {
 	 */
 	stream(): ReadableStream<Row> {
 		const rows = this.#result.table.rows
-		let index = 0
+		const iterator = rows.values()
 		return new ReadableStream<Row>({
 			pull(controller) {
-				while (index < rows.length) {
-					const row = rows[index]
-					index += 1
+				for (const row of iterator) {
 					if (row !== undefined) {
 						controller.enqueue(row)
 						return

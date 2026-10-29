@@ -6,10 +6,11 @@
 // the published surface moves.
 import type { SpawnSyncReturns } from 'node:child_process'
 import type { TestContext } from 'vitest'
-import { isArray, isObject, isString } from '@orkestrel/contract'
+import { attempt, isArray, isObject, isString } from '@orkestrel/contract'
 import { spawnSync } from 'node:child_process'
 import {
 	existsSync,
+	cpSync,
 	mkdirSync,
 	mkdtempSync,
 	readdirSync,
@@ -21,7 +22,7 @@ import {
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,7 +32,10 @@ const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 // compiler majors this toolchain supports, and its in-process API is not. It is
 // resolved from the workspace under proof, so a consumer of the packed artifact is
 // checked by the same compiler that workspace's own `check` script runs.
-const TSC = createRequire(join(ROOT, 'package.json')).resolve('typescript/bin/tsc')
+const TSC = join(
+	dirname(createRequire(join(ROOT, 'package.json')).resolve('typescript/package.json')),
+	'bin/tsc',
+)
 // Windows needs a shell to launch a `.cmd`: Node refuses one directly since the
 // batch-argument hardening, and `spawnSync` returns `EINVAL` with a null status
 // rather than an exit code a caller can read. Every following argument is a literal or
@@ -193,10 +197,8 @@ function isNames(value: unknown): value is readonly string[] {
 function isPackageTarget(target: string): boolean {
 	if (!target.startsWith('./')) return false
 	for (const segment of target.slice(2).split(/[\\/]/u)) {
-		let decoded = segment
-		try {
-			decoded = decodeURIComponent(segment)
-		} catch {}
+		const result = attempt(() => decodeURIComponent(segment))
+		const decoded = result.success ? result.value : segment
 		const normalized = decoded.toLowerCase()
 		if (normalized === '.' || normalized === '..' || normalized === 'node_modules') return false
 	}
@@ -284,11 +286,16 @@ function matchesFile(path: string): boolean {
 // the containing condition or fallback list unresolved, so the walk continues.
 function targetToDeclaration(target: string, installed: string): string | undefined {
 	if (!isPackageTarget(target)) return undefined
-	let declaration = target
-	if (target.endsWith('.cjs')) declaration = `${target.slice(0, -4)}.d.cts`
-	else if (target.endsWith('.mjs')) declaration = `${target.slice(0, -4)}.d.mts`
-	else if (target.endsWith('.js')) declaration = `${target.slice(0, -3)}.d.ts`
-	else if (!isDeclaration(target)) return undefined
+	const declaration = target.endsWith('.cjs')
+		? `${target.slice(0, -4)}.d.cts`
+		: target.endsWith('.mjs')
+			? `${target.slice(0, -4)}.d.mts`
+			: target.endsWith('.js')
+				? `${target.slice(0, -3)}.d.ts`
+				: isDeclaration(target)
+					? target
+					: undefined
+	if (declaration === undefined) return undefined
 	return matchesFile(join(installed, declaration)) ? declaration : undefined
 }
 
@@ -320,22 +327,22 @@ function resolveDeclaration(
 // physical nested manifest starts a scope even when it omits `type` or cannot be
 // parsed. A directory at that spelling is not a manifest, so the walk continues.
 function readPackageType(installed: string, target: string): unknown {
-	let directory = dirname(join(installed, target))
-	while (true) {
-		const path = join(directory, 'package.json')
-		if (matchesFile(path)) {
-			try {
-				const manifest = readJson(path)
-				return isRecord(manifest) ? manifest.type : undefined
-			} catch {
-				return undefined
-			}
+	return readDirectoryType(installed, dirname(join(installed, target)))
+}
+
+function readDirectoryType(installed: string, directory: string): unknown {
+	const path = join(directory, 'package.json')
+	if (matchesFile(path)) {
+		try {
+			const manifest = readJson(path)
+			return isRecord(manifest) ? manifest.type : undefined
+		} catch {
+			return undefined
 		}
-		if (directory === installed) return undefined
-		const parent = dirname(directory)
-		if (parent === directory) return undefined
-		directory = parent
 	}
+	if (directory === installed) return undefined
+	const parent = dirname(directory)
+	return parent === directory ? undefined : readDirectoryType(installed, parent)
 }
 
 function resolvesBrowser(entry: unknown): boolean {
@@ -771,6 +778,45 @@ function requireStage(context: TestContext): Stage {
 }
 
 describe('installed package consumer', () => {
+	it('recognizes branded errors across installed copies and module formats [requires the registry]', (context) => {
+		const stage = requireStage(context)
+		const copy = join(stage.consumer, 'copy')
+		cpSync(stage.installed, copy, { recursive: true })
+		const name = readManifestName(join(stage.installed, 'package.json'))
+		const entry = stage.entries.find((candidate) => candidate.subpath === '.')
+		const target = resolveTarget(entry?.mapping, RUNTIME_CONDITIONS.module)
+		if (target === undefined) throw new Error('The package has no import entry')
+		const driver = join(stage.consumer, 'errors.mjs')
+		writeFile(
+			driver,
+			`import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
+const copies = [await import(process.argv[2]), createRequire(import.meta.url)(process.argv[2]), await import(process.argv[3])]
+for (const owner of copies) {
+	const error = new owner.CSVError('BAD_QUOTE', 'quoted field', { line: 1, column: 2, offset: 1 }, { field: 'name' })
+	class Derived extends owner.CSVError {}
+	const subclass = new Derived('BAD_QUOTE', 'subclass')
+	subclass.name = 'Derived'
+	const brand = Symbol.for('@orkestrel/csv.CSVError')
+	const plain = {}
+	Object.defineProperty(plain, brand, { value: plain })
+	assert.equal(Object.getOwnPropertyDescriptor(error, brand).enumerable, false)
+	assert.equal(Object.getOwnPropertyDescriptor(error, brand).writable, false)
+	for (const reader of copies) {
+		assert.equal(reader.isCSVError(error), true)
+		assert.equal(reader.isCSVError(subclass), true)
+		assert.equal(reader.isCSVError(Object.assign(new Error('look-alike'), { code: error.code })), false)
+		assert.equal(reader.isCSVError(new Proxy(error, {})), false)
+		assert.equal(reader.isCSVError(plain), false)
+	}
+}
+`,
+		)
+		const result = runNode([driver, name, pathToFileURL(join(copy, target)).href], stage.consumer)
+		expect(readOutput(result)).toBe('')
+		expect(result.status).toBe(0)
+	})
+
 	it('packs one archive and installs it in isolation [requires the registry]', (context) => {
 		const stage = requireStage(context)
 		expect(stage.archives).toHaveLength(1)

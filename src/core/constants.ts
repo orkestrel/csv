@@ -4,7 +4,7 @@ import type { ParseOptions, RenderOptions } from './types.js'
 // canonical-format patterns from. No behavior lives here.
 
 /** Names the UTF-8 byte-order-mark character, `'\uFEFF'`, prepended when `RenderOptions.bom` is `true`. */
-export const BOM = '﻿'
+export const BOM = '\uFEFF'
 
 /**
  * Holds the resolved default {@link ParseOptions} (everything but `comment`,

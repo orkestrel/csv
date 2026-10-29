@@ -119,7 +119,9 @@ describe('CSV — stream', () => {
 		const csv = new CSV('a,b\n1,2\n3,4')
 		const reader = csv.stream().getReader()
 		const rows = []
-		for (let result = await reader.read(); !result.done; result = await reader.read()) {
+		while (true) {
+			const result = await reader.read()
+			if (result.done) break
 			rows.push(result.value)
 		}
 		expect(rows).toEqual(csv.rows)
