@@ -45,7 +45,7 @@ A `Shape` cell holds an interface's data members as bare names in braces, `?`
 marking an optional member and `plus` introducing its call-signature members,
 and a type alias's own type literal with a union's arms escaped as `\|`.
 
-| Type                    | Kind      | Shape                                                                                                                                 | Summary                                                                                                                                                                                                             |
+| Name                    | Kind      | Shape                                                                                                                                 | Summary                                                                                                                                                                                                             |
 | ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Row`                   | type      | `Record<string, unknown>`                                                                                                             | Represents a CSV row — a plain record of column values keyed by column name.                                                                                                                                        |
 | `CSVTable`              | interface | `{ columns, rows }`                                                                                                                   | Represents a parsed CSV table — the typed rows plus the column order they were parsed (or declared) in.                                                                                                             |
@@ -78,7 +78,7 @@ From [`errors.ts`](../src/core/errors.ts). An invalid option or programmer
 error always throws a `CSVError`; a parse-time malformation is collected
 into a result's `errors` unless `strict` is set.
 
-| Error        | Kind     | Signature                               | Summary                                                                                                                                                         |
+| Name         | Kind     | Signature                               | Summary                                                                                                                                                         |
 | ------------ | -------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CSVError`   | class    | `extends Error`                         | Represents an error surfaced by the CSV layer — either thrown for a programmer error / `strict`-mode parse failure, or collected into a result's `errors` list. |
 | `isCSVError` | function | `(value: unknown) => value is CSVError` | Narrows an unknown caught value to a `CSVError`.                                                                                                                |
@@ -90,7 +90,7 @@ canonical patterns from, from [`constants.ts`](../src/core/constants.ts).
 
 A `Shape` cell holds the constant's declared type.
 
-| Constant                   | Kind  | Shape                                      | Summary                                                                                                                                                                                                                                                                                                   |
+| Name                       | Kind  | Shape                                      | Summary                                                                                                                                                                                                                                                                                                   |
 | -------------------------- | ----- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BOM`                      | const | `string`                                   | Names the UTF-8 byte-order-mark character, `'\uFEFF'`, prepended when `RenderOptions.bom` is `true`.                                                                                                                                                                                                      |
 | `DEFAULT_PARSE_OPTIONS`    | const | `Required<Omit<ParseOptions, 'comment'>>`  | Holds the resolved default `ParseOptions` (everything but `comment`, which has no default) — what `parseCSV` uses for any option left unspecified: `{ delimiter: ',', quote: '"', escape: 'double', header: true, blanks: true, trim: false, ragged: 'collect', infer: false, limit: 0, strict: false }`. |
@@ -114,7 +114,7 @@ hand-written tokenizer and table builders `parsers.ts` composes, and the
 rendering projections callers reach for directly. Every function is
 unit-testable in isolation.
 
-| Helper                  | Kind     | Signature                                                                                                                                            | Summary                                                                                                                                                                                                                                       |
+| Name                    | Kind     | Signature                                                                                                                                            | Summary                                                                                                                                                                                                                                       |
 | ----------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `assertValidSeparators` | function | `(delimiter: string, quote: string) => void`                                                                                                         | Validates a delimiter / quote pair shared by both `resolveParseOptions` and `resolveRenderOptions` — each must be exactly one character, they must differ, and neither may be CR, LF, or the BOM character.                                   |
 | `resolveParseOptions`   | function | `(options?: ParseOptions) => ResolvedParseOptions`                                                                                                   | Merges `options` over `DEFAULT_PARSE_OPTIONS` into a fully-resolved parse configuration.                                                                                                                                                      |
@@ -151,7 +151,7 @@ Whole-column type inference from
 holds, rules which `ColumnType` it carries, and applies that ruling cell by
 cell.
 
-| Inferer           | Kind     | Signature                                                              | Summary                                                                                                                                                                                                                                                                                        |
+| Name              | Kind     | Signature                                                              | Summary                                                                                                                                                                                                                                                                                        |
 | ----------------- | -------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `inferColumnType` | function | `(values: readonly string[]) => ColumnType`                            | Infers a whole column's `ColumnType` conservatively from its raw string values — never `'json'` or `'blob'` (those require an explicit `Columns` declaration). Empty-string cells are ignored entirely (they neither confirm nor demote a type); a column with no non-empty cells is `'text'`. |
 | `coerceInferred`  | function | `(value: string, type: ColumnType) => unknown`                         | Coerces one string cell to `type`'s typed representation — the exhaustive per-cell dispatch `inferRows` applies once a column's type is known.                                                                                                                                                 |
@@ -164,7 +164,7 @@ entry point, which composes the `helpers.ts` tokenizer, the `helpers.ts` table
 builders, and the `inferers.ts` column inference into a `CSVParseResult`, plus
 the flat cell coercers that inference dispatches to.
 
-| Parser         | Kind     | Signature                                                   | Summary                                                                                                                                                                               |
+| Name           | Kind     | Signature                                                   | Summary                                                                                                                                                                               |
 | -------------- | -------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `parseCSV`     | function | `(input: string, options?: ParseOptions) => CSVParseResult` | Parses `input` into a typed `CSVParseResult` — header mapping, ragged-row handling, and optional type inference on top of `readRecords`, `deriveHeader`, `buildRow`, and `inferRows`. |
 | `parseInteger` | function | `(value: string) => number \| undefined`                    | Parses a raw cell string into a canonical integer — `undefined` for anything else (leading zeros, decimals, out-of-safe-range magnitude, non-numeric text).                           |
@@ -178,7 +178,7 @@ Declarative `ContractShape` values (from `@orkestrel/contract`), from
 coercing parser, JSON Schema, and seeded generator. `deriveShapes` builds a
 whole `Columns` map of them from a table's own cell values.
 
-| Shaper            | Kind     | Signature                             | Summary                                                                                                                                                                                                                              |
+| Name              | Kind     | Signature                             | Summary                                                                                                                                                                                                                              |
 | ----------------- | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `columnTypeShape` | function | `(type: ColumnType) => ContractShape` | Returns the `ContractShape` a `ColumnType`'s values must satisfy.                                                                                                                                                                    |
 | `csvTableShape`   | const    | `ContractShape`                       | Represents the `ContractShape` of a `CSVTable`'s JSON-serializable projection — an ordered `columns` list of strings plus `rows`, each an open record of JSON values.                                                                |
@@ -191,7 +191,7 @@ throw, return `false` for any off-shape input.
 
 In a guard table a `Shape` cell holds the type the guard narrows to.
 
-| Guard          | Kind  | Shape        | Summary                                                                                                         |
+| Name           | Kind  | Shape        | Summary                                                                                                         |
 | -------------- | ----- | ------------ | --------------------------------------------------------------------------------------------------------------- |
 | `isCSVTable`   | const | `CSVTable`   | Determines whether an arbitrary value is a valid `CSVTable` — an array of column names plus an array of `Row`s. |
 | `isColumnType` | const | `ColumnType` | Determines whether a value is a valid `ColumnType` literal.                                                     |
@@ -218,7 +218,7 @@ never mutates the stored table, it returns a new `CSV`. See
 
 From [`factories.ts`](../src/core/factories.ts).
 
-| Factory               | Kind     | Signature                                                             | Summary                                                                                                                                                   |
+| Name                  | Kind     | Signature                                                             | Summary                                                                                                                                                   |
 | --------------------- | -------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `createCSV`           | function | `(input: string \| CSVTable, options?: ParseOptions) => CSVInterface` | Creates a working `CSVInterface` from a CSV string or an already-parsed `CSVTable`.                                                                       |
 | `createTableContract` | function | `(columns: Columns) => ContractInterface<Row>`                        | Compiles a `Columns` map into a `ContractInterface` for a `Row` — a guard, coercing parser, JSON Schema, and seeded generator from one shape declaration. |
