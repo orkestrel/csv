@@ -4,7 +4,7 @@ import type {
 	CSVTable,
 	ExportOptions,
 	ParseOptions,
-	Row,
+	CSVRow,
 	TableExport,
 } from './types.js'
 import { createContract, isString, objectShape } from '@orkestrel/contract'
@@ -48,7 +48,7 @@ export class CSV implements CSVInterface {
 	}
 
 	/** Returns the parsed rows, in table order (same as `table.rows`). */
-	get rows(): readonly Row[] {
+	get rows(): readonly CSVRow[] {
 		return this.#result.table.rows
 	}
 
@@ -68,7 +68,7 @@ export class CSV implements CSVInterface {
 	 * csv.find((row) => row.id === '1')
 	 * ```
 	 */
-	find(predicate: (row: Row, index: number) => boolean): Row | undefined {
+	find(predicate: (row: CSVRow, index: number) => boolean): CSVRow | undefined {
 		return this.#result.table.rows.find(predicate)
 	}
 
@@ -83,7 +83,7 @@ export class CSV implements CSVInterface {
 	 * csv.filter((row) => Number(row.age) >= 18)
 	 * ```
 	 */
-	filter(predicate: (row: Row, index: number) => boolean): readonly Row[] {
+	filter(predicate: (row: CSVRow, index: number) => boolean): readonly CSVRow[] {
 		return this.#result.table.rows.filter(predicate)
 	}
 
@@ -101,7 +101,7 @@ export class CSV implements CSVInterface {
 	 * const upper = csv.map((row) => ({ ...row, name: String(row.name).toUpperCase() }))
 	 * ```
 	 */
-	map(rewrite: (row: Row, index: number) => Row): CSVInterface {
+	map(rewrite: (row: CSVRow, index: number) => CSVRow): CSVInterface {
 		const table: CSVTable = {
 			columns: this.#result.table.columns,
 			rows: this.#result.table.rows.map(rewrite),
@@ -123,7 +123,7 @@ export class CSV implements CSVInterface {
 	 * const total = csv.reduce((sum, row) => sum + Number(row.amount), 0)
 	 * ```
 	 */
-	reduce<T>(callback: (accumulator: T, row: Row, index: number) => T, initial: T): T {
+	reduce<T>(callback: (accumulator: T, row: CSVRow, index: number) => T, initial: T): T {
 		return this.#result.table.rows.reduce(callback, initial)
 	}
 
@@ -131,20 +131,20 @@ export class CSV implements CSVInterface {
 	 * Returns a web-standard {@link ReadableStream} over the table's rows
 	 * (source order) — a fresh, pull-based source per call.
 	 *
-	 * @returns A `ReadableStream<Row>` that enqueues one row per `pull`
+	 * @returns A `ReadableStream<CSVRow>` that enqueues one row per `pull`
 	 *
 	 * @example
 	 * ```ts
 	 * const reader = csv.stream().getReader()
 	 * for (let result = await reader.read(); !result.done; result = await reader.read()) {
-	 * 	console.log(result.value) // one Row
+	 * 	console.log(result.value) // one CSVRow
 	 * }
 	 * ```
 	 */
-	stream(): ReadableStream<Row> {
+	stream(): ReadableStream<CSVRow> {
 		const rows = this.#result.table.rows
 		const iterator = rows.values()
-		return new ReadableStream<Row>({
+		return new ReadableStream<CSVRow>({
 			pull(controller) {
 				for (const row of iterator) {
 					if (row !== undefined) {

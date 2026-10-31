@@ -13,14 +13,14 @@ import {
 	quoteMinimal,
 	quoteNonnumeric,
 	quoteStyleToPolicy,
-	readRecords,
+	scanRecords,
 	renderCSV,
 	renderRecord,
 	resolveParseOptions,
 	resolveRenderOptions,
 	sanitizeField,
 	scanBreak,
-	scanComment,
+	scanCommentLine,
 	scanField,
 	scanQuoted,
 	scanRecord,
@@ -373,7 +373,7 @@ describe('serializeCell', () => {
 })
 
 describe('isRowList', () => {
-	it('accepts a readonly Row[] value', () => {
+	it('accepts a readonly CSVRow[] value', () => {
 		expect(isRowList([{ a: 1 }, { b: 2 }])).toBe(true)
 	})
 
@@ -396,7 +396,7 @@ describe('renderCSV', () => {
 		expect(csv).toBe('a,b\r\n1,2')
 	})
 
-	it('renders a Row[] input using first-seen key union order', () => {
+	it('renders a CSVRow[] input using first-seen key union order', () => {
 		const csv = renderCSV([
 			{ a: 1, b: 2 },
 			{ b: 3, c: 4 },
@@ -530,22 +530,22 @@ describe('scanBreak', () => {
 	})
 })
 
-describe('scanComment', () => {
+describe('scanCommentLine', () => {
 	it('returns undefined when no comment marker is configured', () => {
-		expect(scanComment('#hi\na', START, resolveParseOptions())).toBeUndefined()
+		expect(scanCommentLine('#hi\na', START, resolveParseOptions())).toBeUndefined()
 	})
 
 	it('returns undefined when the text does not start with the comment marker', () => {
-		expect(scanComment('a,b', START, resolveParseOptions({ comment: '#' }))).toBeUndefined()
+		expect(scanCommentLine('a,b', START, resolveParseOptions({ comment: '#' }))).toBeUndefined()
 	})
 
 	it('consumes through the break after a comment line', () => {
-		const next = scanComment('#hi\na', START, resolveParseOptions({ comment: '#' }))
+		const next = scanCommentLine('#hi\na', START, resolveParseOptions({ comment: '#' }))
 		expect(next).toEqual({ offset: 4, line: 2, column: 1 })
 	})
 
 	it('consumes to end-of-input when the comment has no trailing break', () => {
-		const next = scanComment('#hi', START, resolveParseOptions({ comment: '#' }))
+		const next = scanCommentLine('#hi', START, resolveParseOptions({ comment: '#' }))
 		expect(next).toEqual({ offset: 3, line: 1, column: 4 })
 	})
 })
@@ -664,9 +664,9 @@ describe('scanRecord', () => {
 	})
 })
 
-describe('readRecords', () => {
+describe('scanRecords', () => {
 	it('round-trips a quoted field containing a delimiter, CR, LF, and an escaped quote', () => {
-		const { records, errors } = readRecords(`a,${buildQuotedField()},b`)
+		const { records, errors } = scanRecords(`a,${buildQuotedField()},b`)
 		expect(errors).toHaveLength(0)
 		expect(records).toHaveLength(1)
 		const record = records[0]
@@ -677,7 +677,7 @@ describe('readRecords', () => {
 
 	it('collects UNTERMINATED_QUOTE at the position of the opening quote', () => {
 		const input = 'a,b\nc,"unterminated'
-		const { records, errors } = readRecords(input)
+		const { records, errors } = scanRecords(input)
 		expect(records).toHaveLength(2)
 		expect(errors).toHaveLength(1)
 		const error = errors[0]
@@ -690,7 +690,7 @@ describe('readRecords', () => {
 	})
 
 	it('collects BAD_QUOTE for an illegal char after a closing quote, keeping both fields', () => {
-		const { records, errors } = readRecords('"ab"c,x')
+		const { records, errors } = scanRecords('"ab"c,x')
 		expect(errors).toHaveLength(1)
 		const error = errors[0]
 		expect(error).toBeDefined()
@@ -710,7 +710,7 @@ describe('readRecords', () => {
 
 	it('handles mixed CRLF / LF / bare-CR separators with correct record count and line numbers', () => {
 		const csv = `${buildMixedNewlineCSV()}\n"bad`
-		const { records, errors } = readRecords(csv)
+		const { records, errors } = scanRecords(csv)
 		expect(records).toHaveLength(5)
 		expect(records[2]?.fields).toEqual([
 			{ value: '3', quoted: false },
@@ -725,7 +725,7 @@ describe('readRecords', () => {
 	})
 
 	it('preserves an embedded CRLF inside a quoted field verbatim', () => {
-		const { records } = readRecords('a,"x\r\ny"')
+		const { records } = scanRecords('a,"x\r\ny"')
 		const record = records[0]
 		expect(record).toBeDefined()
 		if (record === undefined) return
@@ -733,11 +733,11 @@ describe('readRecords', () => {
 	})
 
 	it('yields identical records with or without a trailing newline', () => {
-		const noTrailing = readRecords('a,b\n1,2')
-		const trailing = readRecords('a,b\n1,2\n')
+		const noTrailing = scanRecords('a,b\n1,2')
+		const trailing = scanRecords('a,b\n1,2\n')
 		// CRLF separators shift byte offsets relative to LF ones, so only the
 		// field content (not position) is compared against the CRLF variant.
-		const crlfTrailing = readRecords('a,b\r\n1,2\r\n')
+		const crlfTrailing = scanRecords('a,b\r\n1,2\r\n')
 		expect(trailing.records).toEqual(noTrailing.records)
 		expect(crlfTrailing.records.map((record) => record.fields)).toEqual(
 			noTrailing.records.map((record) => record.fields),
@@ -746,7 +746,7 @@ describe('readRecords', () => {
 
 	it('strips exactly one leading BOM; a mid-file BOM stays as data', () => {
 		const bom = '\uFEFF'
-		const { records } = readRecords(`${bom}a,b\n1,${bom}2`)
+		const { records } = scanRecords(`${bom}a,b\n1,${bom}2`)
 		expect(records[0]?.fields).toEqual([
 			{ value: 'a', quoted: false },
 			{ value: 'b', quoted: false },
@@ -758,13 +758,13 @@ describe('readRecords', () => {
 	})
 
 	it('distinguishes an unquoted empty field from a quoted empty field', () => {
-		const unquoted = readRecords('a,,b')
+		const unquoted = scanRecords('a,,b')
 		expect(unquoted.records[0]?.fields).toEqual([
 			{ value: 'a', quoted: false },
 			{ value: '', quoted: false },
 			{ value: 'b', quoted: false },
 		])
-		const quoted = readRecords('a,"",b')
+		const quoted = scanRecords('a,"",b')
 		expect(quoted.records[0]?.fields).toEqual([
 			{ value: 'a', quoted: false },
 			{ value: '', quoted: true },
@@ -773,7 +773,7 @@ describe('readRecords', () => {
 	})
 
 	it('treats a missing trailing field as two fields', () => {
-		const { records } = readRecords('a,')
+		const { records } = scanRecords('a,')
 		expect(records[0]?.fields).toEqual([
 			{ value: 'a', quoted: false },
 			{ value: '', quoted: false },
@@ -781,22 +781,22 @@ describe('readRecords', () => {
 	})
 
 	it('keeps a wholly empty line as a record when blanks is true, and drops it when false', () => {
-		const kept = readRecords('a,b\n\nc,d', { blanks: true })
+		const kept = scanRecords('a,b\n\nc,d', { blanks: true })
 		expect(kept.records).toHaveLength(3)
 		expect(kept.records[1]?.fields).toEqual([{ value: '', quoted: false }])
-		const dropped = readRecords('a,b\n\nc,d', { blanks: false })
+		const dropped = scanRecords('a,b\n\nc,d', { blanks: false })
 		expect(dropped.records).toHaveLength(2)
 	})
 
 	it('does not treat a whitespace-only line as blank', () => {
-		const { records } = readRecords('a,b\n   \nc,d', { blanks: false })
+		const { records } = scanRecords('a,b\n   \nc,d', { blanks: false })
 		expect(records).toHaveLength(3)
 		expect(records[1]?.fields).toEqual([{ value: '   ', quoted: false }])
 	})
 
 	it('skips comment lines while keeping later line numbers correct', () => {
 		const input = '# a comment\na,b\n# another\nc,"bad'
-		const { records, errors } = readRecords(input, { comment: '#' })
+		const { records, errors } = scanRecords(input, { comment: '#' })
 		expect(records).toHaveLength(2)
 		expect(records[0]?.fields).toEqual([
 			{ value: 'a', quoted: false },
@@ -809,7 +809,7 @@ describe('readRecords', () => {
 	})
 
 	it('trims only unquoted field values', () => {
-		const { records } = readRecords('  a  ,"  b  "', { trim: true })
+		const { records } = scanRecords('  a  ,"  b  "', { trim: true })
 		expect(records[0]?.fields).toEqual([
 			{ value: 'a', quoted: false },
 			{ value: '  b  ', quoted: true },
@@ -817,7 +817,7 @@ describe('readRecords', () => {
 	})
 
 	it('stops scanning after LIMIT_EXCEEDED, emitting only up to the cap', () => {
-		const { records, errors } = readRecords('1\n2\n3\n4\n5', { limit: 2 })
+		const { records, errors } = scanRecords('1\n2\n3\n4\n5', { limit: 2 })
 		expect(records).toHaveLength(2)
 		expect(errors).toHaveLength(1)
 		const error = errors[0]
@@ -828,16 +828,16 @@ describe('readRecords', () => {
 
 	it('caps collected errors at MAX_ERRORS', () => {
 		const lines = Array.from({ length: MAX_ERRORS + 10 }, () => '"ab"c')
-		const { errors } = readRecords(lines.join('\n'))
+		const { errors } = scanRecords(lines.join('\n'))
 		expect(errors).toHaveLength(MAX_ERRORS)
 	})
 
 	it('supports the backslash escape style; a doubled quote is NOT an escape in that mode', () => {
-		const { records, errors } = readRecords('"a\\"b\\\\c"', { escape: 'backslash' })
+		const { records, errors } = scanRecords('"a\\"b\\\\c"', { escape: 'backslash' })
 		expect(errors).toHaveLength(0)
 		expect(records[0]?.fields).toEqual([{ value: 'a"b\\c', quoted: true }])
 
-		const doubled = readRecords('"a""b"', { escape: 'backslash' })
+		const doubled = scanRecords('"a""b"', { escape: 'backslash' })
 		expect(doubled.records[0]?.fields).toEqual([{ value: 'a"b"', quoted: true }])
 		expect(doubled.errors).toHaveLength(1)
 		const doubledError = doubled.errors[0]
@@ -847,7 +847,7 @@ describe('readRecords', () => {
 	})
 
 	it('parses tab-separated text via delimiter "\\t"', () => {
-		const { records } = readRecords('a\tb\n1\t2', { delimiter: '\t' })
+		const { records } = scanRecords('a\tb\n1\t2', { delimiter: '\t' })
 		expect(records.map((record) => record.fields)).toEqual([
 			[
 				{ value: 'a', quoted: false },
@@ -861,12 +861,12 @@ describe('readRecords', () => {
 	})
 
 	it('returns an empty result for empty input (or input that is only a BOM)', () => {
-		expect(readRecords('')).toEqual({ records: [], errors: [] })
-		expect(readRecords('\uFEFF')).toEqual({ records: [], errors: [] })
+		expect(scanRecords('')).toEqual({ records: [], errors: [] })
+		expect(scanRecords('\uFEFF')).toEqual({ records: [], errors: [] })
 	})
 
 	it("reports each record's start position", () => {
-		const { records } = readRecords('a,b\n1,2')
+		const { records } = scanRecords('a,b\n1,2')
 		expect(records[0]?.start).toEqual({ offset: 0, line: 1, column: 1 })
 		expect(records[1]?.start).toEqual({ offset: 4, line: 2, column: 1 })
 	})
@@ -874,7 +874,7 @@ describe('readRecords', () => {
 
 describe('deriveHeader', () => {
 	it('disambiguates duplicate raw names and collects DUPLICATE_HEADER', () => {
-		const { records } = readRecords('id,id,name\n1,2,3')
+		const { records } = scanRecords('id,id,name\n1,2,3')
 		const header = deriveHeader(records, resolveParseOptions())
 		expect(header.columns).toEqual(['id', 'id_2', 'name'])
 		expect(header.errors).toHaveLength(1)
@@ -883,7 +883,7 @@ describe('deriveHeader', () => {
 	})
 
 	it('collects EMPTY_HEADER for a blank name', () => {
-		const { records } = readRecords(',b\n1,2')
+		const { records } = scanRecords(',b\n1,2')
 		const header = deriveHeader(records, resolveParseOptions())
 		expect(header.columns).toEqual(['column1', 'b'])
 		expect(header.errors).toHaveLength(1)
@@ -892,7 +892,7 @@ describe('deriveHeader', () => {
 	})
 
 	it('uses positional columns at the widest record when header is false', () => {
-		const { records } = readRecords('1,2\n1,2,3')
+		const { records } = scanRecords('1,2\n1,2,3')
 		const header = deriveHeader(records, resolveParseOptions({ header: false }))
 		expect(header.columns).toEqual(['column1', 'column2', 'column3'])
 		expect(header.body).toHaveLength(2)
@@ -906,7 +906,7 @@ describe('deriveHeader', () => {
 
 describe('buildRow', () => {
 	it('builds an exact-width record with no error', () => {
-		const { records } = readRecords('1,2')
+		const { records } = scanRecords('1,2')
 		const record = records[0]
 		expect(record).toBeDefined()
 		if (record === undefined) return
@@ -916,7 +916,7 @@ describe('buildRow', () => {
 	})
 
 	it('"collect" pads a short record and collects RAGGED_ROW', () => {
-		const { records } = readRecords('1,2')
+		const { records } = scanRecords('1,2')
 		const record = records[0]
 		expect(record).toBeDefined()
 		if (record === undefined) return
@@ -927,7 +927,7 @@ describe('buildRow', () => {
 	})
 
 	it('"collect" truncates a long record and reports dropped values', () => {
-		const { records } = readRecords('1,2,3,4')
+		const { records } = scanRecords('1,2,3,4')
 		const record = records[0]
 		expect(record).toBeDefined()
 		if (record === undefined) return
@@ -937,7 +937,7 @@ describe('buildRow', () => {
 	})
 
 	it('"pad" pads/truncates silently', () => {
-		const { records } = readRecords('1,2')
+		const { records } = scanRecords('1,2')
 		const record = records[0]
 		expect(record).toBeDefined()
 		if (record === undefined) return
@@ -947,7 +947,7 @@ describe('buildRow', () => {
 	})
 
 	it('"error" omits the row, returning only the error', () => {
-		const { records } = readRecords('1,2')
+		const { records } = scanRecords('1,2')
 		const record = records[0]
 		expect(record).toBeDefined()
 		if (record === undefined) return

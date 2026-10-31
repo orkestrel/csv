@@ -1,4 +1,4 @@
-import type { CSVTable, ExportOptions, Row } from '@src/core'
+import type { CSVTable, ExportOptions, CSVRow } from '@src/core'
 import { createContract, isRecord, stringShape } from '@orkestrel/contract'
 import { captureError, collectStream, requireValue } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
@@ -136,7 +136,7 @@ describe('CSV — stream', () => {
 	})
 
 	it('skips a sparse slot without dropping later rows', async () => {
-		const rows: Row[] = []
+		const rows: CSVRow[] = []
 		rows.length = 3
 		rows[1] = { a: '2' }
 		rows[2] = { a: '3' }

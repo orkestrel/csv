@@ -1,5 +1,5 @@
 import type { ContractInterface } from '@orkestrel/contract'
-import type { Columns, CSVInterface, CSVTable, ParseOptions, Row } from './types.js'
+import type { Columns, CSVInterface, CSVTable, ParseOptions, CSVRow } from './types.js'
 import { createContract, objectShape } from '@orkestrel/contract'
 import { CSV } from './CSV.js'
 
@@ -26,8 +26,8 @@ import { CSV } from './CSV.js'
  * const csv = createCSV('name,age\nAda,36\nGrace,85', { infer: true })
  * csv.table // { columns: ['name', 'age'], rows: [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }] }
  *
- * const ada = csv.find((row) => row.name === 'Ada') // Row | undefined
- * const adults = csv.filter((row) => Number(row.age) >= 40) // readonly Row[]
+ * const ada = csv.find((row) => row.name === 'Ada') // CSVRow | undefined
+ * const adults = csv.filter((row) => Number(row.age) >= 40) // readonly CSVRow[]
  * ```
  */
 export function createCSV(input: string | CSVTable, options?: ParseOptions): CSVInterface {
@@ -36,7 +36,7 @@ export function createCSV(input: string | CSVTable, options?: ParseOptions): CSV
 
 /**
  * Compiles a {@link Columns} map into a {@link ContractInterface} for a
- * {@link Row} — a guard, coercing parser, JSON Schema, and seeded generator
+ * {@link CSVRow} — a guard, coercing parser, JSON Schema, and seeded generator
  * from one shape declaration.
  *
  * @remarks
@@ -46,7 +46,7 @@ export function createCSV(input: string | CSVTable, options?: ParseOptions): CSV
  * produces for the same `columns`.
  *
  * @param columns - The column name → value-shape map to compile
- * @returns A `Row` contract bundling `schema` / `is` / `parse` / `explain` / `generate`
+ * @returns A `CSVRow` contract bundling `schema` / `is` / `parse` / `explain` / `generate`
  *
  * @example
  * ```ts
@@ -57,6 +57,6 @@ export function createCSV(input: string | CSVTable, options?: ParseOptions): CSV
  * contract.is({ id: 1 }) // true
  * ```
  */
-export function createTableContract(columns: Columns): ContractInterface<Row> {
+export function createTableContract(columns: Columns): ContractInterface<CSVRow> {
 	return createContract(objectShape(columns))
 }

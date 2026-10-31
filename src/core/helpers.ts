@@ -10,7 +10,7 @@ import type {
 	RenderOptions,
 	ResolvedParseOptions,
 	ResolvedRenderOptions,
-	Row,
+	CSVRow,
 	RowResult,
 } from './types.js'
 import {
@@ -225,7 +225,7 @@ export function serializeCell(value: unknown, blank: string): string {
  * deriveColumns([{ a: 1, b: 2 }, { b: 3, c: 4 }]) // ['a', 'b', 'c']
  * ```
  */
-export function deriveColumns(rows: readonly Row[]): readonly string[] {
+export function deriveColumns(rows: readonly CSVRow[]): readonly string[] {
 	const seen = new Set<string>()
 	for (const row of rows) {
 		for (const key of Object.keys(row)) seen.add(key)
@@ -337,7 +337,7 @@ export function quoteNonnumeric(field: string, options: ResolvedRenderOptions): 
  * ```
  */
 export function renderRecord(
-	row: Row,
+	row: CSVRow,
 	columns: readonly string[],
 	options: ResolvedRenderOptions,
 	quote: (field: string, options: ResolvedRenderOptions) => string,
@@ -377,17 +377,17 @@ export function quoteStyleToPolicy(
 }
 
 /**
- * Narrows a `CSVTable | readonly Row[]` union to its row-list member.
+ * Narrows a `CSVTable | readonly CSVRow[]` union to its row-list member.
  *
  * @remarks
- * A native array test alone does not narrow a `readonly Row[]` union member (a
+ * A native array test alone does not narrow a `readonly CSVRow[]` union member (a
  * TypeScript limitation with readonly arrays) — an explicit type predicate
  * narrows reliably in both branches.
  *
  * @param source - A {@link CSVTable}, or a plain readonly row list
  * @returns True if `source` is a plain row list; false otherwise
  */
-export function isRowList(source: CSVTable | readonly Row[]): source is readonly Row[] {
+export function isRowList(source: CSVTable | readonly CSVRow[]): source is readonly CSVRow[] {
 	return isArray(source)
 }
 
@@ -412,15 +412,15 @@ export function isRowList(source: CSVTable | readonly Row[]): source is readonly
  * // 'a,b\r\n1,2'
  * ```
  */
-export function renderCSV(input: CSVTable | readonly Row[], options?: RenderOptions): string {
+export function renderCSV(input: CSVTable | readonly CSVRow[], options?: RenderOptions): string {
 	const resolved = resolveRenderOptions(options)
-	const rows: readonly Row[] = isRowList(input) ? input : input.rows
+	const rows: readonly CSVRow[] = isRowList(input) ? input : input.rows
 	const columns = resolved.columns ?? (isRowList(input) ? deriveColumns(input) : input.columns)
 	const quote = quoteStyleToPolicy(resolved.quotes)
 
 	const lines: string[] = []
 	if (resolved.header) {
-		const headerRow: Row = Object.create(null)
+		const headerRow: CSVRow = Object.create(null)
 		for (const column of columns) headerRow[column] = column
 		lines.push(renderRecord(headerRow, columns, resolved, quote))
 	}
@@ -502,11 +502,11 @@ export function scanBreak(source: string, position: Position): Position | undefi
  *
  * @example
  * ```ts
- * scanComment('#hi\na', { offset: 0, line: 1, column: 1 }, resolveParseOptions({ comment: '#' }))
+ * scanCommentLine('#hi\na', { offset: 0, line: 1, column: 1 }, resolveParseOptions({ comment: '#' }))
  * // { offset: 4, line: 2, column: 1 }
  * ```
  */
-export function scanComment(
+export function scanCommentLine(
 	source: string,
 	position: Position,
 	options: ResolvedParseOptions,
@@ -741,10 +741,10 @@ export function scanRecord(
  *
  * @example
  * ```ts
- * readRecords('a,b\n1,2').records[0].fields // [{value:'a',quoted:false},{value:'b',quoted:false}]
+ * scanRecords('a,b\n1,2').records[0].fields // [{value:'a',quoted:false},{value:'b',quoted:false}]
  * ```
  */
-export function readRecords(input: string, options?: ParseOptions): RecordsResult {
+export function scanRecords(input: string, options?: ParseOptions): RecordsResult {
 	const resolved = resolveParseOptions(options)
 	const text = input.startsWith(BOM) ? input.slice(BOM.length) : input
 	const steps: Array<
@@ -756,7 +756,7 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
 		if (position.offset >= text.length) break
 		const recordStart = position
 
-		const afterComment = scanComment(text, position, resolved)
+		const afterComment = scanCommentLine(text, position, resolved)
 		if (afterComment !== undefined) {
 			steps.push({
 				next: afterComment,
@@ -816,14 +816,14 @@ export function readRecords(input: string, options?: ParseOptions): RecordsResul
  * {@link Position}. `header: false` generates positional names sized to the
  * widest record, and every record is body.
  *
- * @param records - The raw records (from {@link readRecords})
+ * @param records - The raw records (from {@link scanRecords})
  * @param options - The resolved parse options
  * @returns The resolved columns, the body records (header excluded), and any
  * header errors
  *
  * @example
  * ```ts
- * deriveHeader(readRecords('a,a\n1,2').records, resolveParseOptions())
+ * deriveHeader(scanRecords('a,a\n1,2').records, resolveParseOptions())
  * // { columns: ['a', 'a_2'], body: [...], errors: [...] }
  * ```
  */
@@ -865,7 +865,7 @@ export function deriveHeader(
 }
 
 /**
- * Builds one {@link RawRecord} into one null-prototype {@link Row}, padding
+ * Builds one {@link RawRecord} into one null-prototype {@link CSVRow}, padding
  * or truncating to `columns.length` per `options.ragged`.
  *
  * @remarks
@@ -881,7 +881,7 @@ export function deriveHeader(
  *
  * @example
  * ```ts
- * buildRow(readRecords('1,2').records[0], ['a', 'b', 'c'], resolveParseOptions())
+ * buildRow(scanRecords('1,2').records[0], ['a', 'b', 'c'], resolveParseOptions())
  * // { row: { a: '1', b: '2', c: undefined }, error: CSVError('RAGGED_ROW', ...) }
  * ```
  */
@@ -893,7 +893,7 @@ export function buildRow(
 	const width = columns.length
 	const fields = record.fields
 	const actual = fields.length
-	const row: Row = Object.create(null)
+	const row: CSVRow = Object.create(null)
 	for (const position of Array.from({ length: width }).keys()) {
 		const columnName = columns[position]
 		if (columnName === undefined) continue

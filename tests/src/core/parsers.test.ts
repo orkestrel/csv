@@ -4,7 +4,14 @@ import {
 	parseInteger as contractParseInteger,
 	parseNumber as contractParseNumber,
 } from '@orkestrel/contract'
-import { MAX_ERRORS, isCSVError, parseBoolean, parseCSV, parseInteger, parseReal } from '@src/core'
+import {
+	MAX_ERRORS,
+	isCSVError,
+	parseBooleanCell,
+	parseCSV,
+	parseIntegerCell,
+	parseReal,
+} from '@src/core'
 import { captureError } from '@orkestrel/test'
 import { assertAndNarrow } from '../../setup.js'
 
@@ -13,22 +20,22 @@ import { assertAndNarrow } from '../../setup.js'
 // table-builder leaves parseCSV composes are declared in helpers.ts, and
 // their describes live in that module's mirror.
 
-describe('parseInteger', () => {
+describe('parseIntegerCell', () => {
 	it('accepts a canonical integer', () => {
-		expect(parseInteger('42')).toBe(42)
-		expect(parseInteger('-7')).toBe(-7)
-		expect(parseInteger('0')).toBe(0)
+		expect(parseIntegerCell('42')).toBe(42)
+		expect(parseIntegerCell('-7')).toBe(-7)
+		expect(parseIntegerCell('0')).toBe(0)
 	})
 
 	it('rejects leading zeros, decimals, and non-numeric text', () => {
-		expect(parseInteger('007')).toBeUndefined()
-		expect(parseInteger('3.14')).toBeUndefined()
-		expect(parseInteger('abc')).toBeUndefined()
+		expect(parseIntegerCell('007')).toBeUndefined()
+		expect(parseIntegerCell('3.14')).toBeUndefined()
+		expect(parseIntegerCell('abc')).toBeUndefined()
 	})
 
 	it('rejects an out-of-safe-range magnitude', () => {
-		expect(parseInteger('9999999999999999999')).toBeUndefined()
-		expect(parseInteger(String(Number.MAX_SAFE_INTEGER))).toBe(Number.MAX_SAFE_INTEGER)
+		expect(parseIntegerCell('9999999999999999999')).toBeUndefined()
+		expect(parseIntegerCell(String(Number.MAX_SAFE_INTEGER))).toBe(Number.MAX_SAFE_INTEGER)
 	})
 })
 
@@ -49,22 +56,22 @@ describe('parseReal', () => {
 	})
 })
 
-describe('parseBoolean', () => {
+describe('parseBooleanCell', () => {
 	it('accepts the exact canonical forms', () => {
-		expect(parseBoolean('true')).toBe(true)
-		expect(parseBoolean('false')).toBe(false)
+		expect(parseBooleanCell('true')).toBe(true)
+		expect(parseBooleanCell('false')).toBe(false)
 	})
 
 	it('rejects anything else', () => {
-		expect(parseBoolean('True')).toBeUndefined()
-		expect(parseBoolean('1')).toBeUndefined()
+		expect(parseBooleanCell('True')).toBeUndefined()
+		expect(parseBooleanCell('1')).toBeUndefined()
 	})
 })
 
 describe("@orkestrel/contract parsers, compared against this package's own coercers", () => {
-	it('parseInteger("007") reads 7 from @orkestrel/contract, undefined from this package', () => {
+	it('parseInteger("007") reads 7 from @orkestrel/contract; parseIntegerCell("007") reads undefined', () => {
 		expect(contractParseInteger('007')).toBe(7)
-		expect(parseInteger('007')).toBeUndefined()
+		expect(parseIntegerCell('007')).toBeUndefined()
 	})
 
 	it('parseNumber("007.5") reads 7.5 from @orkestrel/contract; this package has no parseNumber, and its parseReal refuses the leading zero', () => {
@@ -72,11 +79,11 @@ describe("@orkestrel/contract parsers, compared against this package's own coerc
 		expect(parseReal('007.5')).toBeUndefined()
 	})
 
-	it('parseBoolean("1") and parseBoolean("0") read true/false from @orkestrel/contract, undefined from this package', () => {
+	it('parseBoolean("1") and parseBoolean("0") read true/false from @orkestrel/contract; parseBooleanCell reads undefined for both', () => {
 		expect(contractParseBoolean('1')).toBe(true)
 		expect(contractParseBoolean('0')).toBe(false)
-		expect(parseBoolean('1')).toBeUndefined()
-		expect(parseBoolean('0')).toBeUndefined()
+		expect(parseBooleanCell('1')).toBeUndefined()
+		expect(parseBooleanCell('0')).toBeUndefined()
 	})
 })
 

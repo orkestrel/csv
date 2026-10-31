@@ -71,7 +71,7 @@ export function columnTypeShape(type: ColumnType): ContractShape {
  *
  * @remarks
  * This shape is narrower than the declared {@link CSVTable} type, whose
- * {@link Row} values are `unknown` and so admit a function, a symbol, or
+ * {@link CSVRow} values are `unknown` and so admit a function, a symbol, or
  * `undefined`. The shape rejects those, and it therefore disagrees with
  * {@link isCSVTable} on such a table. That divergence is deliberate: use
  * {@link isCSVTable} to check the declared type, and this shape to check that

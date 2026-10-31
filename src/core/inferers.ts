@@ -1,7 +1,12 @@
-import type { ColumnType, Row } from './types.js'
+import type { ColumnType, CSVRow } from './types.js'
 import { isString } from '@orkestrel/contract'
-import { BOOLEAN_FALSE, BOOLEAN_TRUE, INTEGER_PATTERN, REAL_PATTERN } from './constants.js'
-import { parseBoolean, parseInteger, parseReal } from './parsers.js'
+import {
+	BOOLEAN_FALSE,
+	BOOLEAN_TRUE,
+	CANONICAL_INTEGER_PATTERN,
+	REAL_PATTERN,
+} from './constants.js'
+import { parseBooleanCell, parseIntegerCell, parseReal } from './parsers.js'
 
 // The value inferers: everything that reads raw cell text and decides what
 // type it carries. `inferColumnType` rules one column, `coerceInferred`
@@ -43,13 +48,13 @@ export function inferColumnType(values: readonly string[]): ColumnType {
 
 	if (
 		cells.some((value) =>
-			INTEGER_PATTERN.test(value)
+			CANONICAL_INTEGER_PATTERN.test(value)
 				? !Number.isSafeInteger(Number(value))
 				: !REAL_PATTERN.test(value),
 		)
 	)
 		return 'text'
-	const hasDecimal = cells.some((value) => !INTEGER_PATTERN.test(value))
+	const hasDecimal = cells.some((value) => !CANONICAL_INTEGER_PATTERN.test(value))
 	return hasDecimal ? 'real' : 'integer'
 }
 
@@ -61,18 +66,18 @@ export function inferColumnType(values: readonly string[]): ColumnType {
  * @param type - The column's inferred {@link ColumnType} (never `'json'` /
  * `'blob'` — those are never inferred, and pass through unchanged like
  * `'text'`)
- * @returns The typed value, through {@link parseInteger} / {@link parseReal} /
- * {@link parseBoolean}; `value` unchanged for `'text'` (or the unreachable
+ * @returns The typed value, through {@link parseIntegerCell} / {@link parseReal} /
+ * {@link parseBooleanCell}; `value` unchanged for `'text'` (or the unreachable
  * `'json'` / `'blob'`)
  */
 export function coerceInferred(value: string, type: ColumnType): unknown {
 	switch (type) {
 		case 'integer':
-			return parseInteger(value)
+			return parseIntegerCell(value)
 		case 'real':
 			return parseReal(value)
 		case 'boolean':
-			return parseBoolean(value)
+			return parseBooleanCell(value)
 		case 'text':
 		case 'json':
 		case 'blob':
@@ -99,7 +104,7 @@ export function coerceInferred(value: string, type: ColumnType): unknown {
  * inferRows([{ a: '1' }, { a: '2' }], ['a']) // [{ a: 1 }, { a: 2 }]
  * ```
  */
-export function inferRows(rows: readonly Row[], columns: readonly string[]): readonly Row[] {
+export function inferRows(rows: readonly CSVRow[], columns: readonly string[]): readonly CSVRow[] {
 	const types = columns.map((column) => {
 		const values: string[] = []
 		for (const row of rows) {
@@ -110,7 +115,7 @@ export function inferRows(rows: readonly Row[], columns: readonly string[]): rea
 	})
 
 	return rows.map((row) => {
-		const next: Row = Object.create(null)
+		const next: CSVRow = Object.create(null)
 		for (const key of Object.keys(row)) next[key] = row[key]
 		columns.forEach((column, position) => {
 			const value = row[column]

@@ -1,13 +1,13 @@
-import type { CSVParseResult, ParseOptions, Row } from './types.js'
+import type { CSVParseResult, ParseOptions, CSVRow } from './types.js'
 import {
 	BOOLEAN_FALSE,
 	BOOLEAN_TRUE,
-	INTEGER_PATTERN,
+	CANONICAL_INTEGER_PATTERN,
 	MAX_ERRORS,
 	REAL_PATTERN,
 } from './constants.js'
 import { CSVError } from './errors.js'
-import { buildRow, deriveHeader, readRecords, resolveParseOptions } from './helpers.js'
+import { buildRow, deriveHeader, scanRecords, resolveParseOptions } from './helpers.js'
 import { inferRows } from './inferers.js'
 
 // The coercer kind file, whose exported functions all carry the `parse`
@@ -25,7 +25,7 @@ import { inferRows } from './inferers.js'
 /**
  * Parses `input` into a typed {@link CSVParseResult} — header mapping,
  * ragged-row handling, and optional type inference on top of
- * {@link readRecords}, {@link deriveHeader}, {@link buildRow}, and
+ * {@link scanRecords}, {@link deriveHeader}, {@link buildRow}, and
  * {@link inferRows}.
  *
  * @remarks
@@ -35,7 +35,7 @@ import { inferRows } from './inferers.js'
  * `options.limit` caps the number of DATA records — the header record (when
  * `header: true`) is exempt from the cap. `strict: true` throws at the point
  * the FIRST error is discovered — a tokenizer error immediately after
- * {@link readRecords} returns, a header error immediately after
+ * {@link scanRecords} returns, a header error immediately after
  * {@link deriveHeader} returns, or a row-building error the instant it is
  * found while iterating the body in record order — instead of scanning to
  * completion and throwing `errors[0]`; the thrown error is identical to the
@@ -56,14 +56,14 @@ import { inferRows } from './inferers.js'
  */
 export function parseCSV(input: string, options?: ParseOptions): CSVParseResult {
 	const resolved = resolveParseOptions(options)
-	// `limit` caps DATA records (see TSDoc above), but `readRecords` caps RAW
+	// `limit` caps DATA records (see TSDoc above), but `scanRecords` caps RAW
 	// records header-agnostically - with `header: true` the header would
 	// otherwise consume one slot from the cap. Bump the raw limit by one to
 	// exempt the header record; `header: false` passes `options` through
 	// unchanged since there is no header to exempt.
 	const readOptions =
 		resolved.header && resolved.limit > 0 ? { ...options, limit: resolved.limit + 1 } : options
-	const { records, errors: tokenErrors } = readRecords(input, readOptions)
+	const { records, errors: tokenErrors } = scanRecords(input, readOptions)
 
 	if (resolved.strict) {
 		const firstTokenError = tokenErrors[0]
@@ -81,7 +81,7 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
 		if (errors.length < MAX_ERRORS) errors.push(error)
 	}
 
-	const rows: Row[] = []
+	const rows: CSVRow[] = []
 	header.body.forEach((record, index) => {
 		const result = buildRow(record, header.columns, resolved)
 		if (result.row !== undefined) rows.push(result.row)
@@ -123,12 +123,12 @@ export function parseCSV(input: string, options?: ParseOptions): CSVParseResult 
  *
  * @example
  * ```ts
- * parseInteger('42')  // 42
- * parseInteger('007') // undefined
+ * parseIntegerCell('42')  // 42
+ * parseIntegerCell('007') // undefined
  * ```
  */
-export function parseInteger(value: string): number | undefined {
-	if (!INTEGER_PATTERN.test(value)) return undefined
+export function parseIntegerCell(value: string): number | undefined {
+	if (!CANONICAL_INTEGER_PATTERN.test(value)) return undefined
 	const number = Number(value)
 	return Number.isSafeInteger(number) ? number : undefined
 }
@@ -154,7 +154,7 @@ export function parseInteger(value: string): number | undefined {
  * ```
  */
 export function parseReal(value: string): number | undefined {
-	if (INTEGER_PATTERN.test(value)) return parseInteger(value)
+	if (CANONICAL_INTEGER_PATTERN.test(value)) return parseIntegerCell(value)
 	return REAL_PATTERN.test(value) ? Number(value) : undefined
 }
 
@@ -165,7 +165,7 @@ export function parseReal(value: string): number | undefined {
  * @remarks
  * Stricter than `@orkestrel/contract`'s `parseBoolean`, which also accepts
  * `'1'` and `'0'`. A CSV column of `1` and `0` is numeric data, so this
- * coercer leaves it to {@link parseInteger}.
+ * coercer leaves it to {@link parseIntegerCell}.
  *
  * @param value - The raw cell text
  * @returns The matching boolean for {@link BOOLEAN_TRUE} or
@@ -173,11 +173,11 @@ export function parseReal(value: string): number | undefined {
  *
  * @example
  * ```ts
- * parseBoolean('true')  // true
- * parseBoolean('True')  // undefined
+ * parseBooleanCell('true')  // true
+ * parseBooleanCell('True')  // undefined
  * ```
  */
-export function parseBoolean(value: string): boolean | undefined {
+export function parseBooleanCell(value: string): boolean | undefined {
 	if (value === BOOLEAN_TRUE) return true
 	if (value === BOOLEAN_FALSE) return false
 	return undefined

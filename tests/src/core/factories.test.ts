@@ -5,7 +5,7 @@ import { assertAndNarrow } from '../../setup.js'
 
 // This file covers the two @src/core factories — createCSV (returns a
 // working CSVInterface backed by a real CSV instance) and createTableContract
-// (compiles a Columns map into a ContractInterface<Row>, the bridge for typed
+// (compiles a Columns map into a ContractInterface<CSVRow>, the bridge for typed
 // export/import interop with @orkestrel/database). Full parse/render corpora
 // live in CSV.test.ts / parsers.test.ts — here we assert each factory hands
 // back a usable handle.

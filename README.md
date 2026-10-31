@@ -37,7 +37,7 @@ remaining // [{ id: 2, name: 'Grace' }]
 `createCSV(input, options)` (or `new CSV(input, options)`) parses a CSV string
 into a typed `CSVTable` (`{ columns, rows }`) and stores it as a stateful
 workspace — a `CSVInterface` exposing `rows`, `errors`, `find` / `filter` /
-`map` / `reduce`, `stream()` (a `ReadableStream<Row>`), `toJSON()`, and
+`map` / `reduce`, `stream()` (a `ReadableStream<CSVRow>`), `toJSON()`, and
 `export()`. Given an already-parsed `CSVTable` instead of a string, the table
 is adopted as-is and `errors` is empty. Type inference (`options.infer`) is
 conservative and opt-in — left off, every cell is a `string`. Every row is

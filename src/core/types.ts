@@ -8,7 +8,7 @@ import type { CSVError } from './errors.js'
 // stay independent and portable. Types are the source of truth.
 
 /** Represents a CSV row — a plain record of column values keyed by column name. */
-export type Row = Record<string, unknown>
+export type CSVRow = Record<string, unknown>
 
 /**
  * Represents a parsed CSV table — the typed rows plus the column order they
@@ -18,7 +18,7 @@ export interface CSVTable {
 	/** Holds the column names, in order. */
 	readonly columns: readonly string[]
 	/** Holds the parsed rows, in source order. */
-	readonly rows: readonly Row[]
+	readonly rows: readonly CSVRow[]
 }
 
 /**
@@ -116,12 +116,12 @@ export interface HeaderResult {
 
 /**
  * Represents the result of building one {@link RawRecord} into a typed
- * {@link Row} — the row, the error that excluded it, or both when
+ * {@link CSVRow} — the row, the error that excluded it, or both when
  * `ParseOptions.ragged` is `'collect'`.
  */
 export interface RowResult {
 	/** Holds the built row, when the record was kept. */
-	readonly row?: Row
+	readonly row?: CSVRow
 	/** Holds the error collected, when the record was ragged. */
 	readonly error?: CSVError
 }
@@ -314,33 +314,33 @@ export interface CSVInterface {
 	/** Holds the parsed table (columns + rows). */
 	readonly table: CSVTable
 	/** Holds the parsed rows, in table order (same as `table.rows`). */
-	readonly rows: readonly Row[]
+	readonly rows: readonly CSVRow[]
 	/** Lists the errors collected while parsing (capped at {@link MAX_ERRORS}). */
 	readonly errors: readonly CSVError[]
 	/**
 	 * Finds the first row matching `predicate`, called with each row and its
 	 * index in table order.
 	 */
-	find(predicate: (row: Row, index: number) => boolean): Row | undefined
+	find(predicate: (row: CSVRow, index: number) => boolean): CSVRow | undefined
 	/**
 	 * Collects every row matching `predicate`, called with each row and its
 	 * index in table order.
 	 */
-	filter(predicate: (row: Row, index: number) => boolean): readonly Row[]
+	filter(predicate: (row: CSVRow, index: number) => boolean): readonly CSVRow[]
 	/**
 	 * Rewrites every row (copy-on-write) and returns a new
 	 * {@link CSVInterface}, never mutating this one.
 	 */
-	map(rewrite: (row: Row, index: number) => Row): CSVInterface
+	map(rewrite: (row: CSVRow, index: number) => CSVRow): CSVInterface
 	/** Folds the rows, in table order, into an accumulator through `callback`. */
-	reduce<T>(callback: (accumulator: T, row: Row, index: number) => T, initial: T): T
+	reduce<T>(callback: (accumulator: T, row: CSVRow, index: number) => T, initial: T): T
 	/**
 	 * Returns a web-standard `ReadableStream` over the table's rows (source
 	 * order) — a lazy, pull-based, backpressure-respecting source that enqueues
 	 * one row per `pull`. A fresh, independently-replayable stream every call;
 	 * never mutates the table.
 	 */
-	stream(): ReadableStream<Row>
+	stream(): ReadableStream<CSVRow>
 	/** Returns the stored {@link CSVTable} — the JSON-serializable projection. */
 	toJSON(): CSVTable
 	/** Produces a portable {@link TableExport} for moving this CSV's schema elsewhere. */

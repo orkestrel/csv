@@ -10,7 +10,7 @@ import { arrayOf, isRecord, isString, literalOf, recordOf } from '@orkestrel/con
 
 /**
  * Determines whether an arbitrary value is a valid {@link CSVTable} — an
- * array of column names plus an array of {@link Row}s.
+ * array of column names plus an array of {@link CSVRow}s.
  *
  * @remarks
  * Total: never throws, even on cyclic or pathologically deep input — every

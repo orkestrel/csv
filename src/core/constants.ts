@@ -89,7 +89,7 @@ export const SUFFIX_SEPARATOR = '_'
  * zeros (except the bare digit `0`), digits only. No `+` sign, no
  * whitespace.
  */
-export const INTEGER_PATTERN = /^-?(0|[1-9]\d*)$/
+export const CANONICAL_INTEGER_PATTERN = /^-?(0|[1-9]\d*)$/
 
 /**
  * Matches a canonical decimal only — an optional leading `-`, an integer
