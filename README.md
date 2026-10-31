@@ -20,6 +20,7 @@ npm install @orkestrel/csv
 
 - Node.js >= 22.12.0
 - Dual ESM and CommonJS builds from one entry point
+- Runtime dependencies: `@orkestrel/codec` and `@orkestrel/contract`
 
 ## Usage
 

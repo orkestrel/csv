@@ -92,7 +92,6 @@ A `Shape` cell holds the constant's declared type.
 
 | Name                        | Kind  | Signature                                  | Summary                                                                                                                                                                                                                                                                                                   |
 | --------------------------- | ----- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BOM`                       | const | `"\uFEFF"`                                 | Names the UTF-8 byte-order-mark character, `'\uFEFF'`, prepended when `RenderOptions.bom` is `true`.                                                                                                                                                                                                      |
 | `DEFAULT_PARSE_OPTIONS`     | const | `Required<Omit<ParseOptions, 'comment'>>`  | Holds the resolved default `ParseOptions` (everything but `comment`, which has no default) — what `parseCSV` uses for any option left unspecified: `{ delimiter: ',', quote: '"', escape: 'double', header: true, blanks: true, trim: false, ragged: 'collect', infer: false, limit: 0, strict: false }`. |
 | `DEFAULT_RENDER_OPTIONS`    | const | `Required<Omit<RenderOptions, 'columns'>>` | Holds the resolved default `RenderOptions` (everything but `columns`, which has no default) — what `renderCSV` uses for any option left unspecified: `{ delimiter: ',', quote: '"', escape: 'double', newline: '\r\n', header: true, quotes: 'minimal', blank: '', sanitize: true, bom: false }`.         |
 | `SANITIZE_PREFIXES`         | const | `ReadonlySet<string>`                      | Lists the leading characters the OWASP CSV-injection guard treats as formula-triggering — a field starting with any of these is prefixed with a protective `'` when `RenderOptions.sanitize` is `true`.                                                                                                   |
@@ -246,12 +245,14 @@ embedded delimiter/quote/newline inside a quoted field, and doubled quotes as
 the escape convention — while accepting the common real-world dialect
 variants: `\r\n`, bare `\n`, and bare `\r` line endings are all recognized (a
 CRLF pair counts as one line break), and a mix of them within the same
-document is handled record-by-record. A single leading UTF-8 byte-order-mark
-is always stripped before scanning, regardless of `options`. `delimiter`,
+document is handled record-by-record. A single leading UTF-8 byte-order-mark,
+the `BOM` constant `@orkestrel/codec` exports, is always stripped before
+scanning, regardless of `options`, and `renderCSV` prepends the same `BOM`
+when `RenderOptions.bom` is `true`. `delimiter`,
 `quote`, and `escape` (`'double'` doubles an embedded quote, `'backslash'`
 prefixes it) are all caller-configurable knobs, validated by
 `assertValidSeparators` (each exactly one character, distinct from each
-other, and never CR/LF/BOM). Tab-separated output is a `renderCSV` dialect,
+other, and never CR, LF, or `BOM`). Tab-separated output is a `renderCSV` dialect,
 not a separate parser: call `renderCSV` with `delimiter: '\t'`.
 
 ## Total parsing and the error model

@@ -14,7 +14,6 @@ import type {
 	RowResult,
 } from './types.js'
 import {
-	BOM,
 	DEFAULT_PARSE_OPTIONS,
 	DEFAULT_RENDER_OPTIONS,
 	MAX_ERRORS,
@@ -33,6 +32,7 @@ import {
 	isNumber,
 	isString,
 } from '@orkestrel/contract'
+import { BOM } from '@orkestrel/codec'
 import { CSVError } from './errors.js'
 
 // Pure, total helper leaves the parser / renderer compose.

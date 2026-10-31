@@ -3,9 +3,6 @@ import type { ParseOptions, RenderOptions } from './types.js'
 // Centralized, frozen data the parser / renderer draw their defaults and
 // canonical-format patterns from. No behavior lives here.
 
-/** Names the UTF-8 byte-order-mark character, `'\uFEFF'`, prepended when `RenderOptions.bom` is `true`. */
-export const BOM = '\uFEFF'
-
 /**
  * Holds the resolved default {@link ParseOptions} (everything but `comment`,
  * which has no default) — what `parseCSV` uses for any option left

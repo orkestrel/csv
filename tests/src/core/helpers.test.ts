@@ -1,5 +1,4 @@
 import {
-	BOM,
 	MAX_ERRORS,
 	advancePosition,
 	assertValidSeparators,
@@ -30,6 +29,7 @@ import {
 	uniqueName,
 	wrapQuoted,
 } from '@src/core'
+import { BOM } from '@orkestrel/codec'
 import { captureError } from '@orkestrel/test'
 import { assertAndNarrow, buildMixedNewlineCSV, buildQuotedField } from '../../setup.js'
 import { describe, expect, it } from 'vitest'
