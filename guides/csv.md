@@ -41,10 +41,6 @@ The full parse/render/export shape, from [`types.ts`](../src/core/types.ts). An
 interface's call-signature members are documented under
 [`## Methods`](#methods).
 
-A `Shape` cell holds an interface's data members as bare names in braces, `?`
-marking an optional member and `plus` introducing its call-signature members,
-and a type alias's own type literal with a union's arms escaped as `\|`.
-
 | Name                    | Kind      | Signature                                                                                                                             | Summary                                                                                                                                                                                                             |
 | ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CSVRow`                | type      | `Record<string, unknown>`                                                                                                             | Represents a CSV row — a plain record of column values keyed by column name.                                                                                                                                        |
@@ -87,8 +83,6 @@ into a result's `errors` unless `strict` is set.
 
 Centralized, frozen data the parser/renderer draw their defaults and
 canonical patterns from, from [`constants.ts`](../src/core/constants.ts).
-
-A `Shape` cell holds the constant's declared type.
 
 | Name                        | Kind  | Signature                                  | Summary                                                                                                                                                                                                                                                                                                   |
 | --------------------------- | ----- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -187,8 +181,6 @@ whole `Columns` map of them from a table's own cell values.
 
 Guards from [`validators.ts`](../src/core/validators.ts) — total, never
 throw, return `false` for any off-shape input.
-
-In a guard table a `Shape` cell holds the type the guard narrows to.
 
 | Name           | Kind  | Signature           | Summary                                                                                                            |
 | -------------- | ----- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
